@@ -1,0 +1,822 @@
+# https://jimmysong.io/en/blog/sidecar-injection-iptables-and-traffic-routing/
+
+# istio-1.12.1
+                                                                                  k8s_POD_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# docker ps | grep detail
+21ceebb22c1d   4f3c74acb37a                                       "/usr/local/bin/pilo…"   4 hours ago    Up 4 hours                                                                                     k8s_istio-proxy_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+2aaf073b8573   superheatedboy/detail                              "docker-entrypoint.s…"   4 hours ago    Up 4 hours                                                                                     k8s_detail_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+730c33af4a6c   rancher/mirrored-pause:3.6                         "/pause"                 4 hours ago    Up 4 hours                                                                                     k8s_POD_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# docker top `docker ps|grep "k8s_istio-proxy_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0"|cut -d " " -f1`
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+1337                1471428             1471405             0                   10:18               ?                   00:00:09            /usr/local/bin/pilot-agent proxy sidecar --domain default.svc.cluster.local --proxyLogLevel=warning --proxyComponentLogLevel=misc:error --log_output_level=default:info --concurrency 2
+1337                1471478             1471428             0                   10:18               ?                   00:00:41            /usr/local/bin/envoy -c etc/istio/proxy/envoy-rev0.json --restart-epoch 0 --drain-time-s 45 --drain-strategy immediate --parent-shutdown-time-s 60 --local-address-ip-version v4 --file-flush-interval-msec 1000 --disable-hot-restart --log-format %Y-%m-%dT%T.%fZ?%l?envoy %n?%v -l warning --component-log-level misc:error --concurrency 2
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# nsenter -n --target 1471428
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# iptables -t nat -L -v
+Chain PREROUTING (policy ACCEPT 7559 packets, 454K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 7610  457K ISTIO_INBOUND  tcp  --  any    any     anywhere             anywhere            
+
+Chain INPUT (policy ACCEPT 7610 packets, 457K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT (policy ACCEPT 3397 packets, 307K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+   72  4320 ISTIO_OUTPUT  tcp  --  any    any     anywhere             anywhere            
+
+Chain POSTROUTING (policy ACCEPT 3397 packets, 307K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain ISTIO_INBOUND (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15008
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:ssh
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15090
+ 7558  453K RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15021
+    1    60 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15020
+   51  3060 ISTIO_IN_REDIRECT  tcp  --  any    any     anywhere             anywhere            
+
+Chain ISTIO_IN_REDIRECT (3 references)
+ pkts bytes target     prot opt in     out     source               destination         
+   51  3060 REDIRECT   tcp  --  any    any     anywhere             anywhere             redir ports 15006
+
+Chain ISTIO_OUTPUT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+   51  3060 RETURN     all  --  any    lo      127.0.0.6            anywhere            
+    0     0 ISTIO_IN_REDIRECT  all  --  any    lo      anywhere            !localhost            owner UID match 1337
+    0     0 RETURN     all  --  any    lo      anywhere             anywhere             ! owner UID match 1337
+   21  1260 RETURN     all  --  any    any     anywhere             anywhere             owner UID match 1337
+    0     0 ISTIO_IN_REDIRECT  all  --  any    lo      anywhere            !localhost            owner GID match 1337
+    0     0 RETURN     all  --  any    lo      anywhere             anywhere             ! owner GID match 1337
+    0     0 RETURN     all  --  any    any     anywhere             anywhere             owner GID match 1337
+    0     0 RETURN     all  --  any    any     anywhere             localhost           
+    0     0 ISTIO_REDIRECT  all  --  any    any     anywhere             anywhere            
+
+Chain ISTIO_REDIRECT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 REDIRECT   tcp  --  any    any     anywhere             anywhere             redir ports 15001
+    
+# https://istio.io/latest/blog/2019/data-plane-setup/
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1#  nsenter -t 1471428 -n iptables -t nat -S
+-P PREROUTING ACCEPT
+-P INPUT ACCEPT
+-P OUTPUT ACCEPT
+-P POSTROUTING ACCEPT
+-N ISTIO_INBOUND
+-N ISTIO_IN_REDIRECT
+-N ISTIO_OUTPUT
+-N ISTIO_REDIRECT
+-A PREROUTING -p tcp -j ISTIO_INBOUND
+-A OUTPUT -p tcp -j ISTIO_OUTPUT
+-A ISTIO_INBOUND -p tcp -m tcp --dport 15008 -j RETURN
+-A ISTIO_INBOUND -p tcp -m tcp --dport 22 -j RETURN
+-A ISTIO_INBOUND -p tcp -m tcp --dport 15090 -j RETURN
+-A ISTIO_INBOUND -p tcp -m tcp --dport 15021 -j RETURN
+-A ISTIO_INBOUND -p tcp -m tcp --dport 15020 -j RETURN
+-A ISTIO_INBOUND -p tcp -j ISTIO_IN_REDIRECT
+-A ISTIO_IN_REDIRECT -p tcp -j REDIRECT --to-ports 15006
+-A ISTIO_OUTPUT -s 127.0.0.6/32 -o lo -j RETURN
+-A ISTIO_OUTPUT ! -d 127.0.0.1/32 -o lo -m owner --uid-owner 1337 -j ISTIO_IN_REDIRECT
+-A ISTIO_OUTPUT -o lo -m owner ! --uid-owner 1337 -j RETURN
+-A ISTIO_OUTPUT -m owner --uid-owner 1337 -j RETURN
+-A ISTIO_OUTPUT ! -d 127.0.0.1/32 -o lo -m owner --gid-owner 1337 -j ISTIO_IN_REDIRECT
+-A ISTIO_OUTPUT -o lo -m owner ! --gid-owner 1337 -j RETURN
+-A ISTIO_OUTPUT -m owner --gid-owner 1337 -j RETURN
+-A ISTIO_OUTPUT -d 127.0.0.1/32 -j RETURN
+-A ISTIO_OUTPUT -j ISTIO_REDIRECT
+-A ISTIO_REDIRECT -p tcp -j REDIRECT --to-ports 15001
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# 
+
+
+# how to write
+iptables analysis
+https://dramasamy.medium.com/life-of-a-packet-in-istio-part-1-8221971d77de
+
+
+Following are the NAT table rules that handle inbound and outbound traffic routing.
+
+# https://jimmysong.io/en/blog/sidecar-injection-iptables-and-traffic-routing/
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# istioctl proxy-config listener detail-65cdccccc7-nc6wl --port 15006
+ADDRESS PORT  MATCH                                                                    DESTINATION
+0.0.0.0 15006 Addr: *:15006                                                            Non-HTTP/Non-TCP
+0.0.0.0 15006 Trans: tls; App: istio-http/1.0,istio-http/1.1,istio-h2; Addr: 0.0.0.0/0 InboundPassthroughClusterIpv4
+0.0.0.0 15006 Trans: raw_buffer; App: HTTP; Addr: 0.0.0.0/0                            InboundPassthroughClusterIpv4
+0.0.0.0 15006 Trans: tls; App: TCP TLS; Addr: 0.0.0.0/0                                InboundPassthroughClusterIpv4
+0.0.0.0 15006 Trans: raw_buffer; Addr: 0.0.0.0/0                                       InboundPassthroughClusterIpv4
+0.0.0.0 15006 Trans: tls; Addr: 0.0.0.0/0                                              InboundPassthroughClusterIpv4
+0.0.0.0 15006 Trans: tls; App: istio-http/1.0,istio-http/1.1,istio-h2; Addr: *:3006    Cluster: inbound|3006||
+0.0.0.0 15006 Trans: raw_buffer; App: HTTP; Addr: *:3006                               Cluster: inbound|3006||
+0.0.0.0 15006 Trans: tls; App: TCP TLS; Addr: *:3006                                   Cluster: inbound|3006||
+0.0.0.0 15006 Trans: raw_buffer; Addr: *:3006                                          Cluster: inbound|3006||
+0.0.0.0 15006 Trans: tls; Addr: *:3006                                                 Cluster: inbound|3006||
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# 
+
+# DESTINATION: Route destination (the port 3006 is the port the detail application container is listening on)
+
+
+# Init 容器解析
+# https://jimmysong.io/blog/envoy-sidecar-injection-in-istio-service-mesh-deep-dive/
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# kubectl get deployment detail -o yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+    field.cattle.io/publicEndpoints: '[{"addresses":["34.146.130.74"],"port":30120,"protocol":"TCP","serviceName":"default:detail","allNodes":true}]'
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"detail"},"name":"detail","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"detail"}},"template":{"metadata":{"annotations":{"dapr.io/app-id":"detail","dapr.io/app-port":"3006","dapr.io/enabled":"true"},"labels":{"app":"detail"}},"spec":{"containers":[{"image":"superheatedboy/detail:latest","imagePullPolicy":"Always","name":"detail","ports":[{"containerPort":3006}]}]}}}}
+  creationTimestamp: "2022-06-29T07:20:07Z"
+  generation: 3
+  labels:
+    app: detail
+  name: detail
+  namespace: default
+  resourceVersion: "148345"
+  uid: e92f5eb8-f6cc-4619-a402-975ebeab66e2
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: detail
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        cattle.io/timestamp: "2022-06-29T10:18:23Z"
+        dapr.io/app-id: detail
+        dapr.io/app-port: "3006"
+        dapr.io/enabled: "true"
+      creationTimestamp: null
+      labels:
+        app: detail
+    spec:
+      containers:
+      - image: superheatedboy/detail:latest
+        imagePullPolicy: Always
+        name: detail
+        ports:
+        - containerPort: 3006
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2022-06-29T07:21:49Z"
+    lastUpdateTime: "2022-06-29T07:21:49Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2022-06-29T07:20:07Z"
+    lastUpdateTime: "2022-06-29T10:18:31Z"
+    message: ReplicaSet "detail-65cdccccc7" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 3
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# 
+
+
+
+
+kubectl apply -f <(istioctl kube-inject -f /root/react-onlinestore-with-mui-k8s/myapp/detail.yml)
+kubectl get deployments detail -o yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+    field.cattle.io/publicEndpoints: "null"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"creationTimestamp":null,"labels":{"app":"detail"},"name":"detail","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"detail"}},"strategy":{},"template":{"metadata":{"annotations":{"dapr.io/app-id":"detail","dapr.io/app-port":"3006","dapr.io/enabled":"true","kubectl.kubernetes.io/default-container":"detail","kubectl.kubernetes.io/default-logs-container":"detail","prometheus.io/path":"/stats/prometheus","prometheus.io/port":"15020","prometheus.io/scrape":"true","sidecar.istio.io/status":"{\"initContainers\":[\"istio-init\"],\"containers\":[\"istio-proxy\"],\"volumes\":[\"istio-envoy\",\"istio-data\",\"istio-podinfo\",\"istio-token\",\"istiod-ca-cert\"],\"imagePullSecrets\":null,\"revision\":\"default\"}"},"creationTimestamp":null,"labels":{"app":"detail","security.istio.io/tlsMode":"istio","service.istio.io/canonical-name":"detail","service.istio.io/canonical-revision":"latest"}},"spec":{"containers":[{"image":"superheatedboy/detail:latest","imagePullPolicy":"Always","name":"detail","ports":[{"containerPort":3006}],"resources":{}},{"args":["proxy","sidecar","--domain","$(POD_NAMESPACE).svc.cluster.local","--proxyLogLevel=warning","--proxyComponentLogLevel=misc:error","--log_output_level=default:info","--concurrency","2"],"env":[{"name":"JWT_POLICY","value":"third-party-jwt"},{"name":"PILOT_CERT_PROVIDER","value":"istiod"},{"name":"CA_ADDR","value":"istiod.istio-system.svc:15012"},{"name":"POD_NAME","valueFrom":{"fieldRef":{"fieldPath":"metadata.name"}}},{"name":"POD_NAMESPACE","valueFrom":{"fieldRef":{"fieldPath":"metadata.namespace"}}},{"name":"INSTANCE_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}},{"name":"SERVICE_ACCOUNT","valueFrom":{"fieldRef":{"fieldPath":"spec.serviceAccountName"}}},{"name":"HOST_IP","valueFrom":{"fieldRef":{"fieldPath":"status.hostIP"}}},{"name":"PROXY_CONFIG","value":"{}\n"},{"name":"ISTIO_META_POD_PORTS","value":"[\n    {\"containerPort\":3006}\n]"},{"name":"ISTIO_META_APP_CONTAINERS","value":"detail"},{"name":"ISTIO_META_CLUSTER_ID","value":"Kubernetes"},{"name":"ISTIO_META_INTERCEPTION_MODE","value":"REDIRECT"},{"name":"ISTIO_META_MESH_ID","value":"cluster.local"},{"name":"TRUST_DOMAIN","value":"cluster.local"}],"image":"docker.io/istio/proxyv2:1.12.1","name":"istio-proxy","ports":[{"containerPort":15090,"name":"http-envoy-prom","protocol":"TCP"}],"readinessProbe":{"failureThreshold":30,"httpGet":{"path":"/healthz/ready","port":15021},"initialDelaySeconds":1,"periodSeconds":2,"timeoutSeconds":3},"resources":{"limits":{"cpu":"2","memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsGroup":1337,"runAsNonRoot":true,"runAsUser":1337},"volumeMounts":[{"mountPath":"/var/run/secrets/istio","name":"istiod-ca-cert"},{"mountPath":"/var/lib/istio/data","name":"istio-data"},{"mountPath":"/etc/istio/proxy","name":"istio-envoy"},{"mountPath":"/var/run/secrets/tokens","name":"istio-token"},{"mountPath":"/etc/istio/pod","name":"istio-podinfo"}]}],"initContainers":[{"args":["istio-iptables","-p","15001","-z","15006","-u","1337","-m","REDIRECT","-i","*","-x","","-b","*","-d","15090,15021,15020"],"image":"docker.io/istio/proxyv2:1.12.1","name":"istio-init","resources":{"limits":{"cpu":"2","memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"add":["NET_ADMIN","NET_RAW"],"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":false,"runAsGroup":0,"runAsNonRoot":false,"runAsUser":0}}],"volumes":[{"emptyDir":{"medium":"Memory"},"name":"istio-envoy"},{"emptyDir":{},"name":"istio-data"},{"downwardAPI":{"items":[{"fieldRef":{"fieldPath":"metadata.labels"},"path":"labels"},{"fieldRef":{"fieldPath":"metadata.annotations"},"path":"annotations"}]},"name":"istio-podinfo"},{"name":"istio-token","projected":{"sources":[{"serviceAccountToken":{"audience":"istio-ca","expirationSeconds":43200,"path":"istio-token"}}]}},{"configMap":{"name":"istio-ca-root-cert"},"name":"istiod-ca-cert"}]}}},"status":{}}
+  creationTimestamp: "2022-06-29T07:20:07Z"
+  generation: 5
+  labels:
+    app: detail
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:field.cattle.io/publicEndpoints: {}
+      f:spec:
+        f:template:
+          f:metadata:
+            f:annotations:
+              f:cattle.io/timestamp: {}
+    manager: agent
+    operation: Update
+    time: "2022-06-29T10:18:24Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:labels:
+          .: {}
+          f:app: {}
+      f:spec:
+        f:progressDeadlineSeconds: {}
+        f:replicas: {}
+        f:revisionHistoryLimit: {}
+        f:selector: {}
+        f:strategy:
+          f:rollingUpdate:
+            .: {}
+            f:maxSurge: {}
+            f:maxUnavailable: {}
+          f:type: {}
+        f:template:
+          f:metadata:
+            f:annotations:
+              .: {}
+              f:dapr.io/app-id: {}
+              f:dapr.io/app-port: {}
+              f:dapr.io/enabled: {}
+              f:kubectl.kubernetes.io/default-container: {}
+              f:kubectl.kubernetes.io/default-logs-container: {}
+              f:prometheus.io/path: {}
+              f:prometheus.io/port: {}
+              f:prometheus.io/scrape: {}
+              f:sidecar.istio.io/status: {}
+            f:labels:
+              .: {}
+              f:app: {}
+              f:security.istio.io/tlsMode: {}
+              f:service.istio.io/canonical-name: {}
+              f:service.istio.io/canonical-revision: {}
+          f:spec:
+            f:containers:
+              k:{"name":"detail"}:
+                .: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":3006,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:protocol: {}
+                f:resources: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+              k:{"name":"istio-proxy"}:
+                .: {}
+                f:args: {}
+                f:env:
+                  .: {}
+                  k:{"name":"CA_ADDR"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"HOST_IP"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"INSTANCE_IP"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"ISTIO_META_APP_CONTAINERS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ISTIO_META_CLUSTER_ID"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ISTIO_META_INTERCEPTION_MODE"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ISTIO_META_MESH_ID"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ISTIO_META_POD_PORTS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"JWT_POLICY"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PILOT_CERT_PROVIDER"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"POD_NAME"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"POD_NAMESPACE"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"PROXY_CONFIG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"SERVICE_ACCOUNT"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"TRUST_DOMAIN"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":15090,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:failureThreshold: {}
+                  f:httpGet:
+                    .: {}
+                    f:path: {}
+                    f:port: {}
+                    f:scheme: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:resources:
+                  .: {}
+                  f:limits:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                  f:requests:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                f:securityContext:
+                  .: {}
+                  f:allowPrivilegeEscalation: {}
+                  f:capabilities:
+                    .: {}
+                    f:drop: {}
+                  f:privileged: {}
+                  f:readOnlyRootFilesystem: {}
+                  f:runAsGroup: {}
+                  f:runAsNonRoot: {}
+                  f:runAsUser: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/etc/istio/pod"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/etc/istio/proxy"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/istio/data"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/run/secrets/istio"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/run/secrets/tokens"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:initContainers:
+              .: {}
+              k:{"name":"istio-init"}:
+                .: {}
+                f:args: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:name: {}
+                f:resources:
+                  .: {}
+                  f:limits:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                  f:requests:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                f:securityContext:
+                  .: {}
+                  f:allowPrivilegeEscalation: {}
+                  f:capabilities:
+                    .: {}
+                    f:add: {}
+                    f:drop: {}
+                  f:privileged: {}
+                  f:readOnlyRootFilesystem: {}
+                  f:runAsGroup: {}
+                  f:runAsNonRoot: {}
+                  f:runAsUser: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"istio-data"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"istio-envoy"}:
+                .: {}
+                f:emptyDir:
+                  .: {}
+                  f:medium: {}
+                f:name: {}
+              k:{"name":"istio-podinfo"}:
+                .: {}
+                f:downwardAPI:
+                  .: {}
+                  f:defaultMode: {}
+                  f:items: {}
+                f:name: {}
+              k:{"name":"istio-token"}:
+                .: {}
+                f:name: {}
+                f:projected:
+                  .: {}
+                  f:defaultMode: {}
+                  f:sources: {}
+              k:{"name":"istiod-ca-cert"}:
+                .: {}
+                f:configMap:
+                  .: {}
+                  f:defaultMode: {}
+                  f:name: {}
+                f:name: {}
+    manager: kubectl-client-side-apply
+    operation: Update
+    time: "2022-06-29T15:23:22Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:deployment.kubernetes.io/revision: {}
+      f:status:
+        f:availableReplicas: {}
+        f:conditions:
+          .: {}
+          k:{"type":"Available"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Progressing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:observedGeneration: {}
+        f:readyReplicas: {}
+        f:replicas: {}
+        f:updatedReplicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2022-06-29T15:23:31Z"
+  name: detail
+  namespace: default
+  resourceVersion: "199586"
+  uid: e92f5eb8-f6cc-4619-a402-975ebeab66e2
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: detail
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        cattle.io/timestamp: "2022-06-29T10:18:23Z"
+        dapr.io/app-id: detail
+        dapr.io/app-port: "3006"
+        dapr.io/enabled: "true"
+        kubectl.kubernetes.io/default-container: detail
+        kubectl.kubernetes.io/default-logs-container: detail
+        prometheus.io/path: /stats/prometheus
+        prometheus.io/port: "15020"
+        prometheus.io/scrape: "true"
+        sidecar.istio.io/status: '{"initContainers":["istio-init"],"containers":["istio-proxy"],"volumes":["istio-envoy","istio-data","istio-podinfo","istio-token","istiod-ca-cert"],"imagePullSecrets":null,"revision":"default"}'
+      creationTimestamp: null
+      labels:
+        app: detail
+        security.istio.io/tlsMode: istio
+        service.istio.io/canonical-name: detail
+        service.istio.io/canonical-revision: latest
+    spec:
+      containers:
+      - image: superheatedboy/detail:latest
+        imagePullPolicy: Always
+        name: detail
+        ports:
+        - containerPort: 3006
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      - args:
+        - proxy
+        - sidecar
+        - --domain
+        - $(POD_NAMESPACE).svc.cluster.local
+        - --proxyLogLevel=warning
+        - --proxyComponentLogLevel=misc:error
+        - --log_output_level=default:info
+        - --concurrency
+        - "2"
+        env:
+        - name: JWT_POLICY
+          value: third-party-jwt
+        - name: PILOT_CERT_PROVIDER
+          value: istiod
+        - name: CA_ADDR
+          value: istiod.istio-system.svc:15012
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: INSTANCE_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.serviceAccountName
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: PROXY_CONFIG
+          value: |
+            {}
+        - name: ISTIO_META_POD_PORTS
+          value: |-
+            [
+                {"containerPort":3006}
+            ]
+        - name: ISTIO_META_APP_CONTAINERS
+          value: detail
+        - name: ISTIO_META_CLUSTER_ID
+          value: Kubernetes
+        - name: ISTIO_META_INTERCEPTION_MODE
+          value: REDIRECT
+        - name: ISTIO_META_MESH_ID
+          value: cluster.local
+        - name: TRUST_DOMAIN
+          value: cluster.local
+        image: docker.io/istio/proxyv2:1.12.1
+        imagePullPolicy: IfNotPresent
+        name: istio-proxy
+        ports:
+        - containerPort: 15090
+          name: http-envoy-prom
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /healthz/ready
+            port: 15021
+            scheme: HTTP
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 1337
+          runAsNonRoot: true
+          runAsUser: 1337
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/run/secrets/istio
+          name: istiod-ca-cert
+        - mountPath: /var/lib/istio/data
+          name: istio-data
+        - mountPath: /etc/istio/proxy
+          name: istio-envoy
+        - mountPath: /var/run/secrets/tokens
+          name: istio-token
+        - mountPath: /etc/istio/pod
+          name: istio-podinfo
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - args:
+        - istio-iptables
+        - -p
+        - "15001"
+        - -z
+        - "15006"
+        - -u
+        - "1337"
+        - -m
+        - REDIRECT
+        - -i
+        - '*'
+        - -x
+        - ""
+        - -b
+        - '*'
+        - -d
+        - 15090,15021,15020
+        image: docker.io/istio/proxyv2:1.12.1
+        imagePullPolicy: IfNotPresent
+        name: istio-init
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - NET_ADMIN
+            - NET_RAW
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsGroup: 0
+          runAsNonRoot: false
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir:
+          medium: Memory
+        name: istio-envoy
+      - emptyDir: {}
+        name: istio-data
+      - downwardAPI:
+          defaultMode: 420
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.labels
+            path: labels
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.annotations
+            path: annotations
+        name: istio-podinfo
+      - name: istio-token
+        projected:
+          defaultMode: 420
+          sources:
+          - serviceAccountToken:
+              audience: istio-ca
+              expirationSeconds: 43200
+              path: istio-token
+      - configMap:
+          defaultMode: 420
+          name: istio-ca-root-cert
+        name: istiod-ca-cert
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2022-06-29T07:21:49Z"
+    lastUpdateTime: "2022-06-29T07:21:49Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2022-06-29T07:20:07Z"
+    lastUpdateTime: "2022-06-29T15:23:31Z"
+    message: ReplicaSet "detail-6f6d98986d" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 5
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+
+# https://jimmysong.io/blog/envoy-sidecar-injection-in-istio-service-mesh-deep-dive/
+我们看到 istio-init 容器的入口是 istio-iptables 命令，该命令是用于初始化路由表的。
+
+关于该命令的详细代码请查看 GitHub：tools/istio-iptables/pkg/cmd/root.go 。
+再参考 istio-init 容器的启动参数，完整的启动命令如下：
+
+$ /usr/local/bin/istio-iptables -p 15001 -z 15006 -u 1337 -m REDIRECT -i '*' -x "" -b * -d "15090,15201,15020"
+该容器存在的意义就是让 Envoy 代理可以拦截所有的进出 Pod 的流量，即将入站流量重定向到 Sidecar，再拦截应用容器的出站流量经过 Sidecar 处理后再出站。
+
+命令解析
+
+这条启动命令的作用是：
+
+将应用容器的所有流量都转发到 Envoy 的 15006 端口。
+使用 istio-proxy 用户身份运行， UID 为 1337，即 Envoy 所处的用户空间，这也是 istio-proxy 容器默认使用的用户，见 YAML 配置中的 runAsUser 字段。
+使用默认的 REDIRECT 模式来重定向流量。
+将所有出站流量都重定向到 Envoy 代理。
+将除了 15090、15201、15020 端口以外的所有端口的流量重定向到 Envoy 代理。
+因为 Init 容器初始化完毕后就会自动终止，因为我们无法登陆到容器中查看 iptables 信息，但是 Init 容器初始化结果会保留到应用容器和 Sidecar 容器中。
+

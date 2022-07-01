@@ -1,0 +1,65 @@
+// https://jimmysong.io/en/blog/sidecar-injection-iptables-and-traffic-routing/
+
+//istio-1.12.1
+                                                                                  k8s_POD_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+# docker ps | grep detail
+21ceebb22c1d   4f3c74acb37a                                       "/usr/local/bin/pilo…"   4 hours ago    Up 4 hours                                                                                     k8s_istio-proxy_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+2aaf073b8573   superheatedboy/detail                              "docker-entrypoint.s…"   4 hours ago    Up 4 hours                                                                                     k8s_detail_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+730c33af4a6c   rancher/mirrored-pause:3.6                         "/pause"                 4 hours ago    Up 4 hours                                                                                     k8s_POD_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0
+
+# docker top `docker ps|grep "k8s_istio-proxy_detail-65cdccccc7-nc6wl_default_85cd53ae-3c80-4ce5-bfb4-9031e338aeaa_0"|cut -d " " -f1`
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+1337                1471428             1471405             0                   10:18               ?                   00:00:09            /usr/local/bin/pilot-agent proxy sidecar --domain default.svc.cluster.local --proxyLogLevel=warning --proxyComponentLogLevel=misc:error --log_output_level=default:info --concurrency 2
+1337                1471478             1471428             0                   10:18               ?                   00:00:41            /usr/local/bin/envoy -c etc/istio/proxy/envoy-rev0.json --restart-epoch 0 --drain-time-s 45 --drain-strategy immediate --parent-shutdown-time-s 60 --local-address-ip-version v4 --file-flush-interval-msec 1000 --disable-hot-restart --log-format %Y-%m-%dT%T.%fZ?%l?envoy %n?%v -l warning --component-log-level misc:error --concurrency 2
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# nsenter -n --target 1471428
+
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# iptables -t nat -L -v
+Chain PREROUTING (policy ACCEPT 7559 packets, 454K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+ 7610  457K ISTIO_INBOUND  tcp  --  any    any     anywhere             anywhere            
+
+Chain INPUT (policy ACCEPT 7610 packets, 457K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT (policy ACCEPT 3397 packets, 307K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+   72  4320 ISTIO_OUTPUT  tcp  --  any    any     anywhere             anywhere            
+
+Chain POSTROUTING (policy ACCEPT 3397 packets, 307K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain ISTIO_INBOUND (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15008
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:ssh
+    0     0 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15090
+ 7558  453K RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15021
+    1    60 RETURN     tcp  --  any    any     anywhere             anywhere             tcp dpt:15020
+   51  3060 ISTIO_IN_REDIRECT  tcp  --  any    any     anywhere             anywhere            
+
+Chain ISTIO_IN_REDIRECT (3 references)
+ pkts bytes target     prot opt in     out     source               destination         
+   51  3060 REDIRECT   tcp  --  any    any     anywhere             anywhere             redir ports 15006
+
+Chain ISTIO_OUTPUT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+   51  3060 RETURN     all  --  any    lo      127.0.0.6            anywhere            
+    0     0 ISTIO_IN_REDIRECT  all  --  any    lo      anywhere            !localhost            owner UID match 1337
+    0     0 RETURN     all  --  any    lo      anywhere             anywhere             ! owner UID match 1337
+   21  1260 RETURN     all  --  any    any     anywhere             anywhere             owner UID match 1337
+    0     0 ISTIO_IN_REDIRECT  all  --  any    lo      anywhere            !localhost            owner GID match 1337
+    0     0 RETURN     all  --  any    lo      anywhere             anywhere             ! owner GID match 1337
+    0     0 RETURN     all  --  any    any     anywhere             anywhere             owner GID match 1337
+    0     0 RETURN     all  --  any    any     anywhere             localhost           
+    0     0 ISTIO_REDIRECT  all  --  any    any     anywhere             anywhere            
+
+Chain ISTIO_REDIRECT (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 REDIRECT   tcp  --  any    any     anywhere             anywhere             redir ports 15001
+    
+root@instance-1:~/rancher-host-provisioning/istio-1.12.1# 
+
+
+
+

@@ -1,0 +1,210 @@
+basePath: /
+host: 0.0.0.0:8080
+info:
+  contact: {}
+  title: SGME API
+  version: "1.0"
+paths:
+  /addServiceApidocUrl/{ns}/{svcname}/{apidocurl}:
+    get:
+      consumes:
+      - application/json
+      description: addServiceApidocUrl
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: api document url
+        in: path
+        name: apidocurl
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: addServiceApidocUrl
+  /circuitBreaker/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: circuitBreaker defines circuit breaker policy that applies to traffic
+        intended for a service after routing has occurred.
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: circuitBreaker
+  /discoverGateway/{ns}:
+    get:
+      consumes:
+      - application/json
+      description: discoverGateway
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverGateway
+  /discoverGatewayPort/{ns}:
+    get:
+      consumes:
+      - application/json
+      description: discoverGatewayPort
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverGatewayPort
+  /discoverService/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: discoverService
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverService
+  /discoverServiceApidocUrl/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: discoverServiceApidocUrl
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverServiceApidocUrl
+  /discoverServices{ns}:
+    get:
+      consumes:
+      - application/json
+      description: discoverServices
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverServices
+  /registerGateway/{ns}/{ip}:
+    get:
+      consumes:
+      - application/json
+      description: registerGateway
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: gateway external ip address
+        in: path
+        name: ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: registerGateway
+  /registerService/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: registerService
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: registerService
+  /test/:
+    get:
+      consumes:
+      - application/x-json-stream
+      description: テスト用APIの詳細
+      parameters:
+      - description: 必須ではありません。
+        in: query
+        name: none
+        type: string
+      responses:
+        "200":
+          description: ""
+swagger: "2.0"
