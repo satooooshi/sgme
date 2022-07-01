@@ -1,4 +1,4 @@
-FROM golang:1.17
+FROM golang:1.18
 
 COPY go.mod /code/go.mod
 COPY go.sum /code/go.sum
@@ -28,8 +28,4 @@ CMD go run main.go
 # docker container run -p 8080:8080 superheatedboy/sgme:latest
 # docker ps
 # docker stop 
-
-# http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail
-# http://localhost:8080/discoverServiceEndpoints/default/detail
-
 

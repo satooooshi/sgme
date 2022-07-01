@@ -928,3 +928,8 @@ func main() {
 // http://localhost:8080/discoverServiceEndpoints/default/detail
 // http://34.146.130.74:8088/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
 // export KUBECONFIG='/code/config' && export NAMESPACE='default' && go run main.go
+
+// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail
+// http://localhost:8080/discoverServiceEndpoints/default/detail
+// http://34.146.130.74:31941/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
+// http://34.146.130.74:31941/invokeServiceEndpointt?method=get&path=/api/hello&svcname=detail&endpointurl=http://10.42.0.19:3006/detail/111
