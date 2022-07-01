@@ -566,13 +566,15 @@ func circuitBreaker(ic *versioned.Clientset, ns string, svcname string) {
 	log.Print(dr)
 }
 
-// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail
+// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
 // https://qiita.com/taizo/items/c397dbfed7215969b0a5
 // HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
 // https://shiimanblog.com/engineering/output-json/
 func _invokeServiceEndpoint(c *gin.Context) {
 	//invokeServiceEndpoint()
 	fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
+	fmt.Printf("%+v", c.Request.URL.Query()["method"])
+	fmt.Printf("%+v", c.Request.URL.Query()["endpointurl"]) //http://123.456.7.8/api/list
 	url := "http://34.146.130.74:31401/detail-asg/detail/111"
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "Bearer access-token")
@@ -832,6 +834,7 @@ func main() {
 	// go mod init
 	// go mod tidy
 	// swag init
+	// go get .
 	// export KUBECONFIG='/Users/satoshiaikawa/.kube/config' && export NAMESPACE='default' && go run main.go
 	// http://localhost:8080/swagger/index.html
 	router.Run("0.0.0.0:8080")
