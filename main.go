@@ -607,22 +607,22 @@ func _invokeServiceEndpointt(c *gin.Context) {
 	//invokeServiceEndpoint()
 	//fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
 	//fmt.Printf("%+v", c.Request.URL.Query()["method"])
-	fmt.Printf("%+v", c.Request.URL.Query()["endpointurl"]) //http://123.456.7.8/api/list
+	fmt.Printf("URL: %+v\n", c.Query("endpointurl")) //http://123.456.7.8/api/list
 	//url := "http://34.146.130.74:31401/detail-asg/detail/111"
-	url := fmt.Sprintf("%s", c.Request.URL.Query()["endpointurl"])
+	url := fmt.Sprintf("%s", c.Query("endpointurl"))
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer access-token")
+	//req.Header.Set("Authorization", "Bearer access-token")
 
 	// request header
-	dump, _ := httputil.DumpRequestOut(req, true)
-	fmt.Printf("%s", dump)
+	//dump, _ := httputil.DumpRequestOut(req, true)
+	//fmt.Printf("%s", dump)
 
 	client := new(http.Client)
 	resp, _ := client.Do(req)
 
 	// response header
-	dumpResp, _ := httputil.DumpResponse(resp, true)
-	fmt.Printf("%s", dumpResp)
+	//dumpResp, _ := httputil.DumpResponse(resp, true)
+	//fmt.Printf("%s", dumpResp)
 
 	// response body
 	defer resp.Body.Close()
