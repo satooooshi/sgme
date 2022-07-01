@@ -887,3 +887,9 @@ func main() {
 		},
 	},
 */
+
+// export KUBECONFIG='/Users/satoshiaikawa/.kube/config' && export NAMESPACE='default' && go run main.go
+// export KUBECONFIG='/root/.kube/config' && export NAMESPACE='default' && go run main.go
+// http://localhost:8080/discoverServiceEndpoints/default/detail
+// http://34.146.130.74:8088/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
+// export KUBECONFIG='/code/config' && export NAMESPACE='default' && go run main.go

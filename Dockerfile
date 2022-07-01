@@ -31,3 +31,5 @@ CMD go run main.go
 
 # http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail
 # http://localhost:8080/discoverServiceEndpoints/default/detail
+
+
