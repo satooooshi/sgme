@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sgme
+  labels:
+    app: sgme
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sgme
+  template:
+    metadata:
+      labels:
+        app: sgme
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "sgme"
+        dapr.io/app-port: "8080"
+    spec:
+      containers:
+      - name: sgme
+        image: superheatedboy/sgme:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: sgme
+  labels:
+    app: sgme
+spec:
+  type: NodePort #ClusterIP
+  selector:
+    app: sgme
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+     

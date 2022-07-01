@@ -599,6 +599,40 @@ func _invokeServiceEndpoint(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, response)
 }
 
+// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
+// https://qiita.com/taizo/items/c397dbfed7215969b0a5
+// HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
+// https://shiimanblog.com/engineering/output-json/
+func _invokeServiceEndpointt(c *gin.Context) {
+	//invokeServiceEndpoint()
+	//fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
+	//fmt.Printf("%+v", c.Request.URL.Query()["method"])
+	fmt.Printf("%+v", c.Request.URL.Query()["endpointurl"]) //http://123.456.7.8/api/list
+	//url := "http://34.146.130.74:31401/detail-asg/detail/111"
+	url := fmt.Sprintf("%s", c.Request.URL.Query()["endpointurl"])
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer access-token")
+
+	// request header
+	dump, _ := httputil.DumpRequestOut(req, true)
+	fmt.Printf("%s", dump)
+
+	client := new(http.Client)
+	resp, _ := client.Do(req)
+
+	// response header
+	dumpResp, _ := httputil.DumpResponse(resp, true)
+	fmt.Printf("%s", dumpResp)
+
+	// response body
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	// JSONを構造体にエンコード
+	var response interface{}
+	json.Unmarshal(body, &response)
+	c.IndentedJSON(http.StatusOK, response)
+}
+
 // @Summary discoverServiceEndpoints
 // @Description discoverServiceEndpoints
 // @Accept  json
@@ -823,6 +857,7 @@ func main() {
 	router.GET("/discoverServices/:ns", _discoverServices)
 	router.GET("/circuitBreaker/:ns/:svcname", _circuitBreaker)
 	router.GET("/invokeServiceEndpoint", _invokeServiceEndpoint)
+	router.GET("/invokeServiceEndpointt", _invokeServiceEndpointt)
 	router.GET("/discoverServiceEndpoints/:ns/:svcname", _discoverServiceEndpoints)
 
 	//url := ginSwagger.URL("http://localhost:8080/swagger/doc.json")
