@@ -16,6 +16,100 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{ips}": {
+            "get": {
+                "description": "/addFrontEpNodeRoute",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "/addFrontEpNodeRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "front client ID ",
+                        "name": "frontid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "endpoint IP addresses",
+                        "name": "ips",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{nodename}": {
+            "get": {
+                "description": "/addFrontEpNodeRoute",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "/addFrontEpNodeRoute",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "front client ID ",
+                        "name": "frontid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "node name",
+                        "name": "nodename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
         "/addServiceApidocUrl/{ns}/{svcname}/{apidocurl}": {
             "get": {
                 "description": "addServiceApidocUrl",
@@ -65,6 +159,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "traffic governance"
+                ],
                 "summary": "circuitBreaker",
                 "parameters": [
                     {
@@ -99,32 +196,6 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "discoverGateway",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "namespace",
-                        "name": "ns",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ok"
-                    }
-                }
-            }
-        },
-        "/discoverGatewayPort/{ns}": {
-            "get": {
-                "description": "discoverGatewayPort",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "discoverGatewayPort",
                 "parameters": [
                     {
                         "type": "string",
@@ -207,7 +278,80 @@ const docTemplate = `{
                 }
             }
         },
-        "/discoverServices{ns}": {
+        "/discoverServiceEndpoints/{ns}/{svcname}": {
+            "get": {
+                "description": "discoverServiceEndpoints",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "discoverServiceEndpoints",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/discoverServiceEndpoints/{ns}/{svcname}/{nodename}": {
+            "get": {
+                "description": "discoverServiceEndpoints",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "discoverServiceEndpoints",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "nodename",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/discoverServices/f{ns}": {
             "get": {
                 "description": "discoverServices",
                 "consumes": [
@@ -223,6 +367,202 @@ const docTemplate = `{
                         "description": "namespace",
                         "name": "ns",
                         "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/getGatewayAddrsAndPorts": {
+            "get": {
+                "description": "getGatewayAddrsAndPorts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "getGatewayAddrsAndPorts",
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/getGatewayPort/{ns}": {
+            "get": {
+                "description": "getGatewayPort",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "getGatewayPort",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/invokeService/{ns}/{svcname}": {
+            "get": {
+                "description": "invokeService",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "invokeService",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service path (ex. /path)",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/invokeServiceEndpoint": {
+            "get": {
+                "description": "invokeServiceEndpoint",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "invokeServiceEndpoint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "endpoint url (ex. http://POD_IP:PORT/path)",
+                        "name": "endpointurl",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/invokeServiceEndpointsByIps/{frontid}/{ns}/{svcname}": {
+            "get": {
+                "description": "invokeServiceEndpointsByIps",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "invokeServiceEndpointsByIps",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "front ID",
+                        "name": "frontid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ok"
+                    }
+                }
+            }
+        },
+        "/invokeServiceEndpointsInNode/{frontid}/{ns}/{svcname}": {
+            "get": {
+                "description": "invokeServiceEndpointsInNode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "invokeServiceEndpointsInNode",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "front ID",
+                        "name": "frontid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "namespace",
+                        "name": "ns",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "service name",
+                        "name": "svcname",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "path (ex. /path)",
+                        "name": "path",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -299,7 +639,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/test/": {
+        "/test/{id}": {
             "get": {
                 "description": "テスト用APIの詳細",
                 "consumes": [
@@ -320,7 +660,17 @@ const docTemplate = `{
                 }
             }
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "service registration/discovery/routing",
+            "name": "serviceGovernance"
+        },
+        {
+            "description": "traffic managemenet",
+            "name": "traffic governance"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

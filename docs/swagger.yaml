@@ -5,6 +5,70 @@ info:
   title: SGME API
   version: "1.0"
 paths:
+  /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{ips}:
+    get:
+      consumes:
+      - application/json
+      description: /addFrontEpNodeRoute
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: 'front client ID '
+        in: path
+        name: frontid
+        required: true
+        type: string
+      - description: endpoint IP addresses
+        in: path
+        name: ips
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: /addFrontEpNodeRoute
+  /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{nodename}:
+    get:
+      consumes:
+      - application/json
+      description: /addFrontEpNodeRoute
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: 'front client ID '
+        in: path
+        name: frontid
+        required: true
+        type: string
+      - description: node name
+        in: path
+        name: nodename
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: /addFrontEpNodeRoute
   /addServiceApidocUrl/{ns}/{svcname}/{apidocurl}:
     get:
       consumes:
@@ -55,6 +119,8 @@ paths:
         "200":
           description: ok
       summary: circuitBreaker
+      tags:
+      - traffic governance
   /discoverGateway/{ns}:
     get:
       consumes:
@@ -72,23 +138,6 @@ paths:
         "200":
           description: ok
       summary: discoverGateway
-  /discoverGatewayPort/{ns}:
-    get:
-      consumes:
-      - application/json
-      description: discoverGatewayPort
-      parameters:
-      - description: namespace
-        in: path
-        name: ns
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ok
-      summary: discoverGatewayPort
   /discoverService/{ns}/{svcname}:
     get:
       consumes:
@@ -133,7 +182,56 @@ paths:
         "200":
           description: ok
       summary: discoverServiceApidocUrl
-  /discoverServices{ns}:
+  /discoverServiceEndpoints/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: discoverServiceEndpoints
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverServiceEndpoints
+  /discoverServiceEndpoints/{ns}/{svcname}/{nodename}:
+    get:
+      consumes:
+      - application/json
+      description: discoverServiceEndpoints
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: nodename
+        in: path
+        name: ns
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: discoverServiceEndpoints
+  /discoverServices/f{ns}:
     get:
       consumes:
       - application/json
@@ -150,6 +248,137 @@ paths:
         "200":
           description: ok
       summary: discoverServices
+  /getGatewayAddrsAndPorts:
+    get:
+      consumes:
+      - application/json
+      description: getGatewayAddrsAndPorts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: getGatewayAddrsAndPorts
+  /getGatewayPort/{ns}:
+    get:
+      consumes:
+      - application/json
+      description: getGatewayPort
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: getGatewayPort
+  /invokeService/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: invokeService
+      parameters:
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: service path (ex. /path)
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: invokeService
+  /invokeServiceEndpoint:
+    get:
+      consumes:
+      - application/json
+      description: invokeServiceEndpoint
+      parameters:
+      - description: endpoint url (ex. http://POD_IP:PORT/path)
+        in: query
+        name: endpointurl
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: invokeServiceEndpoint
+  /invokeServiceEndpointsByIps/{frontid}/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: invokeServiceEndpointsByIps
+      parameters:
+      - description: front ID
+        in: path
+        name: frontid
+        required: true
+        type: string
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: invokeServiceEndpointsByIps
+  /invokeServiceEndpointsInNode/{frontid}/{ns}/{svcname}:
+    get:
+      consumes:
+      - application/json
+      description: invokeServiceEndpointsInNode
+      parameters:
+      - description: front ID
+        in: path
+        name: frontid
+        required: true
+        type: string
+      - description: namespace
+        in: path
+        name: ns
+        required: true
+        type: string
+      - description: service name
+        in: path
+        name: svcname
+        required: true
+        type: string
+      - description: path (ex. /path)
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+      summary: invokeServiceEndpointsInNode
   /registerGateway/{ns}/{ip}:
     get:
       consumes:
@@ -194,7 +423,7 @@ paths:
         "200":
           description: ok
       summary: registerService
-  /test/:
+  /test/{id}:
     get:
       consumes:
       - application/x-json-stream
@@ -208,3 +437,8 @@ paths:
         "200":
           description: ""
 swagger: "2.0"
+tags:
+- description: service registration/discovery/routing
+  name: serviceGovernance
+- description: traffic managemenet
+  name: traffic governance

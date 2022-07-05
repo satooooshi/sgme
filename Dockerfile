@@ -17,15 +17,15 @@ CMD go run main.go
 
 # https://qiita.com/Nossa/items/f70c561020b87532d933
 # https://t8.dev/ja/blog/docker_dockerfile_env/
-# docker build -t superheatedboy/sgme:latest .
+# docker build -t superheatedboy/epagent:latest .
 # cp /Users/satoshiaikawa/.kube/config ./
 
 # this cannot setup the server
-# docker run --rm -it -p 8080:8080 superheatedboy/sgme:latest sh
+# docker run --rm -it -p 8080:8080 superheatedboy/epagent:latest sh
 # go run main.go
 
 # this sets up the server
-# docker container run -p 8080:8080 superheatedboy/sgme:latest
+# docker container run -p 8080:8080 superheatedboy/epagent:latest
 # docker ps
 # docker stop 
 

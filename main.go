@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -115,7 +116,7 @@ func registerGateway(clientset *kubernetes.Clientset, ns string, ip string) stri
 func _discoverGateway(c *gin.Context) {
 	ns := c.Param("ns")
 	ips := discoverGateway(clientset, ns)
-	ports := discoverGatewayPort(ic, ns)
+	ports := getGatewayPort(ic, ns)
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "http://" + ips[0] + ":" + ports[0]})
 }
 func discoverGateway(clientset *kubernetes.Clientset, ns string) []string {
@@ -149,19 +150,19 @@ func discoverNodes() {
 
 }
 
-// @Summary discoverGatewayPort
-// @Description discoverGatewayPort
+// @Summary getGatewayPort
+// @Description getGatewayPort
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
 // @Success 200 "ok"
-// @Router /discoverGatewayPort/{ns} [get]
-func _discoverGatewayPort(c *gin.Context) {
+// @Router /getGatewayPort/{ns} [get]
+func _getGatewayPort(c *gin.Context) {
 	ns := c.Param("ns")
-	discoverGatewayPort(ic, ns)
+	getGatewayPort(ic, ns)
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
 }
-func discoverGatewayPort(ic *versioned.Clientset, ns string) []string {
+func getGatewayPort(ic *versioned.Clientset, ns string) []string { // because gateway is exposed as nodePort service
 	var arr []string
 	// Test VirtualServices
 	vsList, err := ic.NetworkingV1alpha3().VirtualServices(ns).List(context.TODO(), metav1.ListOptions{})
@@ -331,6 +332,7 @@ func _registerService(c *gin.Context) {
 
 // @Summary registerService
 // @Description registerService
+// @tags serviceGovernance
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
@@ -420,15 +422,16 @@ func registerService(dc dynamic.Interface, ns string, vsname string, uriName str
 
 // @Summary discoverServices
 // @Description discoverServices
+// @tags serviceGovernance
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
 // @Success 200 "ok"
-// @Router /discoverServices{ns} [get]
+// @Router /discoverServices/f{ns} [get]
 func _discoverServices(c *gin.Context) {
 	ns := c.Param("ns")
-	discoverServices(clientset, ns)
-	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
+
+	c.IndentedJSON(http.StatusOK, discoverServices(clientset, ns))
 }
 func discoverServices(clientset *kubernetes.Clientset, ns string) []string {
 	services, err := clientset.CoreV1().Services(ns).List(context.TODO(), metav1.ListOptions{})
@@ -445,6 +448,7 @@ func discoverServices(clientset *kubernetes.Clientset, ns string) []string {
 
 // @Summary discoverService
 // @Description discoverService
+// @tags serviceGovernance
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
@@ -456,7 +460,7 @@ func _discoverService(c *gin.Context) {
 	svcname := c.Param("svcname")
 
 	invokingPath := discoverService(clientset, ns, svcname)
-	c.IndentedJSON(http.StatusOK, gin.H{"msg": invokingPath})
+	c.IndentedJSON(http.StatusOK, gin.H{"path": invokingPath})
 }
 func discoverService(clientset *kubernetes.Clientset, ns string, svcname string) string {
 
@@ -481,6 +485,7 @@ func discoverService(clientset *kubernetes.Clientset, ns string, svcname string)
 
 // @Summary circuitBreaker
 // @Description circuitBreaker defines circuit breaker policy that applies to traffic intended for a service after routing has occurred.
+// @tags traffic governance
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
@@ -570,7 +575,7 @@ func circuitBreaker(ic *versioned.Clientset, ns string, svcname string) {
 // https://qiita.com/taizo/items/c397dbfed7215969b0a5
 // HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
 // https://shiimanblog.com/engineering/output-json/
-func _invokeServiceEndpoint(c *gin.Context) {
+func _invokeServiceEndpointt(c *gin.Context) {
 	//invokeServiceEndpoint()
 	fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
 	fmt.Printf("%+v", c.Request.URL.Query()["method"])
@@ -599,23 +604,43 @@ func _invokeServiceEndpoint(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, response)
 }
 
-// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
-// https://qiita.com/taizo/items/c397dbfed7215969b0a5
-// HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
-// https://shiimanblog.com/engineering/output-json/
-func _invokeServiceEndpointt(c *gin.Context) {
-	//invokeServiceEndpoint()
-	//fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
-	//fmt.Printf("%+v", c.Request.URL.Query()["method"])
-	fmt.Printf("URL: %+v\n", c.Query("endpointurl")) //http://123.456.7.8/api/list
+// http://localhost:8080/invokeService/default/detail?path=/detail/111
+// @Summary invokeService
+// @Description invokeService
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Param   path     query    string     true        "service path (ex. /path)"
+// @Success 200 "ok"
+// @Router /invokeService/{ns}/{svcname} [get]
+func _invokeService(c *gin.Context) {
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	fmt.Printf("URL: %+v\n", c.Query("path")) //http://123.456.7.8/api/list
 	//url := "http://34.146.130.74:31401/detail-asg/detail/111"
-	url := fmt.Sprintf("%s", c.Query("endpointurl"))
+	path := fmt.Sprintf("%s", c.Query("path"))
+	c.IndentedJSON(http.StatusOK, invokeService(ns, svcname, path))
+}
+func invokeService(ns string, svcname string, path string) interface{} {
+
+	// get gateway address
+	addrs := getGatewayAddrs(clientset)
+	ports := getGatewayPort(ic, "default")
+	fmt.Printf("gwAddrsPorts\n%+v\n%+v\n", addrs, ports)
+	addr := addrs[0]
+	port := ports[0]
+	svcpath := discoverService(clientset, ns, svcname)
+	url := "http://" + addr + ":" + port + svcpath + path
+	fmt.Printf("Service Invoking Url: %+v\n", url)
+
 	req, _ := http.NewRequest("GET", url, nil)
 	//req.Header.Set("Authorization", "Bearer access-token")
 
 	// request header
-	//dump, _ := httputil.DumpRequestOut(req, true)
-	//fmt.Printf("%s", dump)
+	dump, _ := httputil.DumpRequestOut(req, true)
+	fmt.Printf("%s", dump)
 
 	client := new(http.Client)
 	resp, _ := client.Do(req)
@@ -630,11 +655,56 @@ func _invokeServiceEndpointt(c *gin.Context) {
 	// JSONを構造体にエンコード
 	var response interface{}
 	json.Unmarshal(body, &response)
-	c.IndentedJSON(http.StatusOK, response)
+	return response
+}
+
+// http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
+// https://qiita.com/taizo/items/c397dbfed7215969b0a5
+// HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
+// https://shiimanblog.com/engineering/output-json/
+// @Summary invokeServiceEndpoint
+// @Description invokeServiceEndpoint
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   endpointurl     query    string     true        "endpoint url (ex. http://POD_IP:PORT/path)"
+// @Success 200 "ok"
+// @Router /invokeServiceEndpoint [get]
+func _invokeServiceEndpoint(c *gin.Context) {
+	//fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
+	//fmt.Printf("%+v", c.Request.URL.Query()["method"])
+	fmt.Printf("URL: %+v\n", c.Query("endpointurl")) //http://123.456.7.8/api/list
+	//url := "http://34.146.130.74:31401/detail-asg/detail/111"
+	url := fmt.Sprintf("%s", c.Query("endpointurl"))
+	c.IndentedJSON(http.StatusOK, invokeServiceEndpoint(url))
+}
+func invokeServiceEndpoint(url string) interface{} {
+	req, _ := http.NewRequest("GET", url, nil)
+	//req.Header.Set("Authorization", "Bearer access-token")
+
+	// request header
+	dump, _ := httputil.DumpRequestOut(req, true)
+	fmt.Printf("%s", dump)
+
+	client := new(http.Client)
+	resp, _ := client.Do(req)
+
+	// response header
+	//dumpResp, _ := httputil.DumpResponse(resp, true)
+	//fmt.Printf("%s", dumpResp)
+
+	// response body
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	// JSONを構造体にエンコード
+	var response interface{}
+	json.Unmarshal(body, &response)
+	return response
 }
 
 // @Summary discoverServiceEndpoints
 // @Description discoverServiceEndpoints
+// @tags serviceGovernance
 // @Accept  json
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
@@ -673,15 +743,353 @@ func discoverServiceEndpoints(clientset *kubernetes.Clientset, ns string, svcnam
 	return endpoints.Subsets
 }
 
+// @Summary discoverServiceEndpoints
+// @Description discoverServiceEndpoints
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Param   ns     path    string     true        "nodename"
+// @Success 200 "ok"
+// @Router /discoverServiceEndpoints/{ns}/{svcname}/{nodename} [get]
+func _discoverServiceEndpointsInNode(c *gin.Context) {
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	nodename := c.Param("nodename")
+	c.IndentedJSON(http.StatusOK, discoverServiceEndpointsInNode(clientset, ns, svcname, nodename))
+}
+func discoverServiceEndpointsInNode(clientset *kubernetes.Clientset, ns string, svcname string, nodename string) corev1.EndpointSubset {
+	//kubectl get ep detail
+	/*
+		service, err := clientset.CoreV1().Services("default").Get(context.TODO(), "detail", metav1.GetOptions{})
+		if err != nil {
+			log.Fatalln("failed to get service:", err)
+		}
+		log.Printf("Got service: %+v\n", service.GetName())
+		str := fmt.Sprintf("/%+v-asg", service.GetName())
+		log.Printf("Got str: %+v\n", str)
+	*/
+
+	endpoints, err := clientset.CoreV1().Endpoints("default").Get(context.TODO(), "detail", metav1.GetOptions{})
+	if err != nil {
+		log.Fatalln("failed to get service:", err)
+	}
+	log.Printf("Got endpoints. addresses: %+v, ports: %+v\n", endpoints.Subsets[0].Addresses, endpoints.Subsets[0].Ports[0])
+	var addrs []string
+	for _, addr := range endpoints.Subsets[0].Addresses {
+		addrs = append(addrs, addr.IP)
+	}
+
+	// アドレスはポートごとに異なるサブセットで表示されます。
+	// サービスを構成するアドレスとポートのセット。
+	// EndpointSubsetは、共通のポートセットを持つアドレスのグループです。
+	var addresses []corev1.EndpointAddress
+	for _, addr := range endpoints.Subsets[0].Addresses {
+		if *addr.NodeName == nodename {
+			addresses = append(addresses, addr)
+		}
+
+	}
+	var endpointSubset corev1.EndpointSubset
+	endpointSubset.Addresses = addresses
+	endpointSubset.Ports = endpoints.Subsets[0].Ports
+
+	fmt.Printf("endpoints in node %s:\n%+v\n", nodename, endpointSubset)
+	return endpointSubset
+}
+
+// @Summary invokeServiceEndpointsInNode
+// @Description invokeServiceEndpointsInNode
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   frontid     path    string     true        "front ID"
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Param   path     query    string     true        "path (ex. /path)"
+// @Success 200 "ok"
+// @Router /invokeServiceEndpointsInNode/{frontid}/{ns}/{svcname} [get]
+func _invokeServiceEndpointsInNode(c *gin.Context) {
+	frontid := c.Param("frontid")
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	path := c.Query("path")
+	fmt.Printf("path: %+v\n", c.Query("path")) // /api/list
+
+	c.IndentedJSON(http.StatusOK, invokeServiceEndpointsInNode(clientset, frontid, ns, svcname, path))
+}
+
+//func invokeServiceEndpointsInNode(clientset *kubernetes.Clientset, ns string, svcname string, frontid string) corev1.EndpointSubset {
+func invokeServiceEndpointsInNode(clientset *kubernetes.Clientset, frontid string, ns string, svcname string, path string) interface{} { // return JSON
+	//kubectl get ep detail
+	/*
+		service, err := clientset.CoreV1().Services("default").Get(context.TODO(), "detail", metav1.GetOptions{})
+		if err != nil {
+			log.Fatalln("failed to get service:", err)
+		}
+		log.Printf("Got service: %+v\n", service.GetName())
+		str := fmt.Sprintf("/%+v-asg", service.GetName())
+		log.Printf("Got str: %+v\n", str)
+	*/
+
+	// search config first!! if not found, route to all nodes
+	//
+	naming := frontid + "." + svcname + ".routenode"
+
+	var nodename string = ""
+	if cm, err := clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), naming, metav1.GetOptions{}); errors.IsNotFound(err) {
+		// no routing node specified, route to any arbitrary node's endpoint pod
+		log.Printf("no routing node specified, route to any arbitrary node's endpoint pod\n")
+	} else {
+		// routing node found
+		log.Printf("Routing node found: %s: %+v\n", naming, cm.Data[naming])
+		nodename = cm.Data[naming]
+	}
+
+	endpoints, err := clientset.CoreV1().Endpoints(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalln("failed to get service:", err)
+	}
+	log.Printf("Got endpoints. addresses: %+v, ports: %+v\n", endpoints.Subsets[0].Addresses, endpoints.Subsets[0].Ports[0])
+	var addrs []string
+	for _, addr := range endpoints.Subsets[0].Addresses {
+		addrs = append(addrs, addr.IP)
+	}
+
+	var addresses []corev1.EndpointAddress
+	if nodename != "" { // nodename node's pods
+		for _, addr := range endpoints.Subsets[0].Addresses {
+			if *addr.NodeName == nodename {
+				addresses = append(addresses, addr)
+			}
+		}
+	} else { // arbitrary node's pods
+		for _, addr := range endpoints.Subsets[0].Addresses {
+			addresses = append(addresses, addr)
+		}
+	}
+
+	var endpointSubset corev1.EndpointSubset
+	endpointSubset.Addresses = addresses
+	endpointSubset.Ports = endpoints.Subsets[0].Ports
+
+	fmt.Printf("endpoints in node %s:\n%+v\n", nodename, endpointSubset)
+	fmt.Printf("URL: http://%s:%d%s", endpointSubset.Addresses[0].IP, endpointSubset.Ports[0].Port, path)
+	//url := fmt.Sprintf("http://%s:%s%s", endpointSubset.Addresses[0].IP, endpointSubset.Ports[0].Port, path)
+	//return endpointSubset
+	var response interface{} // = invokeServiceEndpoint(url)
+	//var response interface{} = invokeServiceEndpoint("http://34.146.130.74:31941/test/111")
+	return response
+}
+
+// @Summary invokeServiceEndpointsByIps
+// @Description invokeServiceEndpointsByIps
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   frontid     path    string     true        "front ID"
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Success 200 "ok"
+// @Router /invokeServiceEndpointsByIps/{frontid}/{ns}/{svcname} [get]
+func _invokeServiceEndpointsByIps(c *gin.Context) {
+	frontid := c.Param("frontid")
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	path := c.Query("path")
+	fmt.Printf("path: %+v\n", c.Query("path")) // /api/list
+
+	c.IndentedJSON(http.StatusOK, invokeServiceEndpointsByIps(clientset, frontid, ns, svcname, path))
+}
+func invokeServiceEndpointsByIps(clientset *kubernetes.Clientset, frontid string, ns string, svcname string, path string) interface{} { // return JSON
+	//kubectl get ep detail
+	/*
+		service, err := clientset.CoreV1().Services("default").Get(context.TODO(), "detail", metav1.GetOptions{})
+		if err != nil {
+			log.Fatalln("failed to get service:", err)
+		}
+		log.Printf("Got service: %+v\n", service.GetName())
+		str := fmt.Sprintf("/%+v-asg", service.GetName())
+		log.Printf("Got str: %+v\n", str)
+	*/
+
+	// search config first!! if not found, route to all nodes
+	//
+	naming := frontid + "." + svcname + ".routeip"
+
+	var ips_found bool = false
+	var ips []string
+	if cm, err := clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), naming, metav1.GetOptions{}); errors.IsNotFound(err) {
+		// no routing node specified, route to any arbitrary node's endpoint pod
+		log.Printf("no routing node specified, route to any arbitrary node's endpoint pod\n")
+	} else {
+		// routing node found
+		log.Printf("Routing node found: %s: %+v\n", naming, cm.Data[naming])
+		ips = strings.Split(cm.Data[naming], ",")
+		ips_found = true
+		fmt.Printf("%Endpoint IPs' array: +v\n", ips)
+	}
+
+	endpoints, err := clientset.CoreV1().Endpoints(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalln("failed to get service:", err)
+	}
+	log.Printf("Got endpoints. addresses: %+v, ports: %+v\n", endpoints.Subsets[0].Addresses, endpoints.Subsets[0].Ports[0])
+	var addrs []string
+	for _, addr := range endpoints.Subsets[0].Addresses {
+		addrs = append(addrs, addr.IP)
+	}
+
+	var addresses []corev1.EndpointAddress
+	if ips_found != true { // ip is in saved cofig
+		for _, addr := range endpoints.Subsets[0].Addresses {
+			if addr.IP == ips[0] {
+				addresses = append(addresses, addr)
+			}
+		}
+	} else { // arbitrary endpoint ip's pods
+		for _, addr := range endpoints.Subsets[0].Addresses {
+			addresses = append(addresses, addr)
+		}
+	}
+
+	var endpointSubset corev1.EndpointSubset
+	endpointSubset.Addresses = addresses
+	endpointSubset.Ports = endpoints.Subsets[0].Ports
+
+	fmt.Printf("endpoints in saved config %+v:\n%+v\n", ips, endpointSubset)
+	fmt.Printf("URL: http://%s:%d%s", endpointSubset.Addresses[0].IP, endpointSubset.Ports[0].Port, path)
+	//url := fmt.Sprintf("http://%s:%s%s", endpointSubset.Addresses[0].IP, endpointSubset.Ports[0].Port, path)
+	//return endpointSubset
+	var response interface{} // = invokeServiceEndpoint(url)
+	//var response interface{} = invokeServiceEndpoint("http://34.146.130.74:31941/test/111")
+	return response
+}
+
+// @Summary /addFrontEpNodeRoute
+// @Description /addFrontEpNodeRoute
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Param   frontid     path    string     true        "front client ID "
+// @Param   nodename     path    string     true        "node name"
+// @Success 200 "ok"
+// @Router /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{nodename} [get]
+func _addFrontEpNodeRoute(c *gin.Context) {
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	frontid := c.Param("frontid")
+	nodename := c.Param("nodename")
+	addFrontEpNodeRoute(ic, ns, svcname, frontid, nodename)
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func addFrontEpNodeRoute(ic *versioned.Clientset, ns string, svcname string, frontid string, nodename string) map[string]string {
+	// https://stackoverflow.com/questions/70345467/how-to-create-config-map-and-secrets-using-golang-kubernetes-api
+	// http://blog.johandry.com/post/build-k8s-client/
+	// kubectl get configmap game-data -o yaml
+	configMapData := make(map[string]string, 0)
+
+	naming := frontid + "." + svcname + ".routenode"
+
+	configMapData[naming] = nodename
+	configMap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      naming,
+			Namespace: ns,
+		},
+		Data: configMapData,
+	}
+
+	var cm *corev1.ConfigMap
+	if _, err := clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), naming, metav1.GetOptions{}); errors.IsNotFound(err) {
+		cm, _ = clientset.CoreV1().ConfigMaps(ns).Create(context.TODO(), &configMap, metav1.CreateOptions{})
+	} else {
+		cm, _ = clientset.CoreV1().ConfigMaps(ns).Update(context.TODO(), &configMap, metav1.UpdateOptions{})
+	}
+	//https://stackoverflow.com/questions/27545270/how-to-get-a-value-from-map
+	log.Printf("Registered in configmap: %s: %+v\n", naming, cm.Data[naming])
+	//str := fmt.Sprintf("%+v", cm.Data[svcname+".apidocurl"])
+	return map[string]string{naming: cm.Data[naming]}
+}
+
+// @Summary /addFrontEpNodeRoute
+// @Description /addFrontEpNodeRoute
+// @tags serviceGovernance
+// @Accept  json
+// @Produce  json
+// @Param   ns     path    string     true        "namespace"
+// @Param   svcname     path    string     true        "service name"
+// @Param   frontid     path    string     true        "front client ID "
+// @Param   ips     path    string     true        "endpoint IP addresses"
+// @Success 200 "ok"
+// @Router /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{ips} [get]
+func _addFrontEpIpsRoute(c *gin.Context) {
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	frontid := c.Param("frontid")
+	ips := c.Param("ips")
+	addFrontEpIpsRoute(ic, ns, svcname, frontid, ips)
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
+}
+
+func addFrontEpIpsRoute(ic *versioned.Clientset, ns string, svcname string, frontid string, ips string) map[string]string {
+	// https://stackoverflow.com/questions/70345467/how-to-create-config-map-and-secrets-using-golang-kubernetes-api
+	// http://blog.johandry.com/post/build-k8s-client/
+	// kubectl get configmap game-data -o yaml
+	configMapData := make(map[string]string, 0)
+
+	//arr := strings.Split(ips, ",")
+	//fmt.Printf("%+v\n", arr)
+	//fmt.Printf("%+v\n", strings.Join(arr, ", "))
+
+	naming := frontid + "." + svcname + ".routeip"
+
+	configMapData[naming] = ips
+	configMap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      naming,
+			Namespace: ns,
+		},
+		Data: configMapData,
+	}
+
+	var cm *corev1.ConfigMap
+	if _, err := clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), naming, metav1.GetOptions{}); errors.IsNotFound(err) {
+		cm, _ = clientset.CoreV1().ConfigMaps(ns).Create(context.TODO(), &configMap, metav1.CreateOptions{})
+	} else {
+		cm, _ = clientset.CoreV1().ConfigMaps(ns).Update(context.TODO(), &configMap, metav1.UpdateOptions{})
+	}
+	//https://stackoverflow.com/questions/27545270/how-to-get-a-value-from-map
+	log.Printf("Registered in configmap: %s: %+v\n", naming, cm.Data[naming])
+	//str := fmt.Sprintf("%+v", cm.Data[svcname+".apidocurl"])
+	return map[string]string{naming: cm.Data[naming]}
+}
+
 // @description テスト用APIの詳細
 // @version 1.0
 // @accept application/x-json-stream
 // @param none query string false "必須ではありません。"
 // @Success 200
-// @router /test/ [get]
+// @router /test/{id} [get]
 func getTest(c *gin.Context) {
 	id := c.Param("id")
-	fmt.Printf(id)
+	str := id //"赤,黄,青"
+	arr := strings.Split(str, ",")
+	fmt.Printf("%+v\n", arr)
+	fmt.Printf("%+v\n", strings.Join(arr, ", "))
+
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
 }
 
@@ -702,6 +1110,10 @@ var ic *versioned.Clientset
 // @host 0.0.0.0:8080
 // @BasePath /
 
+// @tag.name serviceGovernance
+// @tag.description service registration/discovery/routing
+// @tag.name traffic governance
+// @tag.description traffic managemenet
 func main() {
 
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -848,7 +1260,7 @@ func main() {
 	router.GET("/test/:id", getTest)
 	router.GET("/registerGateway/:ns/:ip", _registerGateway)
 	router.GET("/discoverGateway/:ns", _discoverGateway)
-	router.GET("/discoverGatewayPort/:ns", _discoverGatewayPort)                     //http://localhost:8080/test/3
+	router.GET("/getGatewayPort/:ns", _getGatewayPort)                               //http://localhost:8080/test/3
 	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
 	router.GET("/discoverServiceApidocUrl/:ns/:svcname", _discoverServiceApidocUrl)
 	//router.GET("/registerService/:ns/:vsname/:uriName/:uriPrefix/:uriRewrite/:host/:port", _registerService)
@@ -859,6 +1271,33 @@ func main() {
 	router.GET("/invokeServiceEndpoint", _invokeServiceEndpoint)
 	router.GET("/invokeServiceEndpointt", _invokeServiceEndpointt)
 	router.GET("/discoverServiceEndpoints/:ns/:svcname", _discoverServiceEndpoints)
+	router.GET("/discoverServiceEndpointsInNode/:ns/:svcname/:nodename", _discoverServiceEndpointsInNode)
+	router.GET("/addFrontEpNodeRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpNodeRoute)
+	router.GET("/addFrontEpIpsRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpIpsRoute)
+	router.GET("/invokeServiceEndpointsInNode/:frontid/:ns/:svcname", _invokeServiceEndpointsInNode)
+	router.GET("/invokeServiceEndpointsByIps/:frontid/:ns/:svcname", _invokeServiceEndpointsByIps)
+	router.GET("/getGatewayAddrsAndPorts", _getGatewayAddrsAndPorts)
+	router.GET("/invokeService/:ns/:svcname", _invokeService) // plus qurey param path needed
+
+	/* IMPORTANT
+	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
+	router.GET("/discoverServiceApidocUrl/:ns/:svcname", _discoverServiceApidocUrl)
+
+	router.GET("/registerService/:ns/:svcname", _registerService)
+	router.GET("/discoverService/:ns/:svcname", _discoverService)
+	router.GET("/discoverServices/:ns", _discoverServices)
+	router.GET("/discoverServiceEndpoints/:ns/:svcname", _discoverServiceEndpoints)
+	router.GET("/invokeService/:ns/:svcname", _invokeService) // plus qurey param path needed
+
+	router.GET("/addFrontEpNodeRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpNodeRoute)
+	router.GET("/addFrontEpIpsRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpIpsRoute)
+
+	router.GET("/invokeServiceEndpointsInNode/:frontid/:ns/:svcname", _invokeServiceEndpointsInNode)
+	router.GET("/invokeServiceEndpointsByIps/:frontid/:ns/:svcname", _invokeServiceEndpointsByIps)
+
+	router.GET("/getGatewayAddrsAndPorts", _getGatewayAddrsAndPorts)
+	router.GET("/circuitBreaker/:ns/:svcname", _circuitBreaker)
+	*/
 
 	//url := ginSwagger.URL("http://localhost:8080/swagger/doc.json")
 	//router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
@@ -931,5 +1370,39 @@ func main() {
 
 // http://localhost:8080/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail
 // http://localhost:8080/discoverServiceEndpoints/default/detail
-// http://34.146.130.74:31941/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
-// http://34.146.130.74:31941/invokeServiceEndpointt?method=get&path=/api/hello&svcname=detail&endpointurl=http://10.42.0.19:3006/detail/111
+// http://34.146.130.74:31941/invokeServiceEndpointt?method=get&path=/api/hello&svcname=detail&endpointurl=http://123.456.7.8/api/list
+// http://34.146.130.74:31941/invokeServiceEndpoint?method=get&path=/api/hello&svcname=detail&endpointurl=http://10.42.0.19:3006/detail/111
+// http://34.146.130.74:31941/discoverServiceEndpoints/default/detail
+// http://34.146.130.74:31941/test/111
+
+// @Summary getGatewayAddrsAndPorts
+// @Description getGatewayAddrsAndPorts
+// @Accept  json
+// @Produce  json
+// @Success 200 "ok"
+// @Router /getGatewayAddrsAndPorts [get]
+func _getGatewayAddrsAndPorts(c *gin.Context) {
+	addrs := getGatewayAddrs(clientset)
+	ports := getGatewayPort(ic, "default")
+	c.IndentedJSON(http.StatusOK, gin.H{"addresses": addrs, "ports": ports}) //  H:htmlに渡す変数を定義
+}
+func getGatewayAddrs(clientset *kubernetes.Clientset) []string {
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Fatalln("failed to get services:", err)
+	}
+
+	var arr []string
+	for i, node := range nodes.Items {
+		fmt.Printf("[%d] %s\n", i, node.GetName())
+		for annotation_name, annotation_value := range node.GetAnnotations() {
+			if annotation_name == "rke.cattle.io/external-ip" {
+				fmt.Println("%+s, %+s\n", annotation_name, annotation_value)
+				arr = append(arr, annotation_value)
+			}
+		}
+	}
+	return arr
+}
+
+// http://localhost:8080/getGatewayAddrsAndPorts
