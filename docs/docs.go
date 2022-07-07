@@ -366,7 +366,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/discoverServices/f{ns}": {
+        "/discoverServices/{ns}": {
             "get": {
                 "description": "discoverServices",
                 "consumes": [

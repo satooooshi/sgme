@@ -241,7 +241,7 @@ paths:
       summary: discoverServiceEndpoints
       tags:
       - serviceGovernance
-  /discoverServices/f{ns}:
+  /discoverServices/{ns}:
     get:
       consumes:
       - application/json

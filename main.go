@@ -57,7 +57,7 @@ import (
 // @Param   ip     path    string     true        "gateway external ip address"
 // @Success 200 "ok"
 // @Router /registerGateway/{ns}/{ip} [get]
-func _registerGateway(c *gin.Context) {
+func (tc *resourceController) _registerGateway(c *gin.Context) {
 	ns := c.Param("ns")
 	ip := c.Param("ip")
 	strIp := registerGateway(clientset, ns, ip)
@@ -113,10 +113,10 @@ func registerGateway(clientset *kubernetes.Clientset, ns string, ip string) stri
 // @Param   ns     path    string     true        "namespace"
 // @Success 200 "ok"
 // @Router /discoverGateway/{ns} [get]
-func _discoverGateway(c *gin.Context) {
+func (tc *resourceController) _discoverGateway(c *gin.Context) {
 	ns := c.Param("ns")
 	ips := discoverGateway(clientset, ns)
-	ports := getGatewayPort(ic, ns)
+	ports := rs.getGatewayPort(ic, ns)
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "http://" + ips[0] + ":" + ports[0]})
 }
 func discoverGateway(clientset *kubernetes.Clientset, ns string) []string {
@@ -157,12 +157,12 @@ func discoverNodes() {
 // @Param   ns     path    string     true        "namespace"
 // @Success 200 "ok"
 // @Router /getGatewayPort/{ns} [get]
-func _getGatewayPort(c *gin.Context) {
+func (tc *resourceController) _getGatewayPort(c *gin.Context) {
 	ns := c.Param("ns")
-	getGatewayPort(ic, ns)
+	rs.getGatewayPort(ic, ns)
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
 }
-func getGatewayPort(ic *versioned.Clientset, ns string) []string { // because gateway is exposed as nodePort service
+func (rs *resourceService) getGatewayPort(ic *versioned.Clientset, ns string) []string { // because gateway is exposed as nodePort service
 	var arr []string
 	// Test VirtualServices
 	vsList, err := ic.NetworkingV1alpha3().VirtualServices(ns).List(context.TODO(), metav1.ListOptions{})
@@ -219,7 +219,7 @@ func getGatewayPort(ic *versioned.Clientset, ns string) []string { // because ga
 // @Param   apidocurl     path    string     true        "api document url"
 // @Success 200 "ok"
 // @Router /addServiceApidocUrl/{ns}/{svcname}/{apidocurl} [get]
-func _addServiceApidocUrl(c *gin.Context) {
+func (tc *resourceController) _addServiceApidocUrl(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	apidocurl := c.Param("apidocurl")
@@ -267,7 +267,7 @@ func addServiceApidocUrl(ic *versioned.Clientset, ns string, svcname string, api
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /discoverServiceApidocUrl/{ns}/{svcname} [get]
-func _discoverServiceApidocUrl(c *gin.Context) {
+func (tc *resourceController) _discoverServiceApidocUrl(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	str := discoverServiceApidocUrl(clientset, ns, svcname)
@@ -339,7 +339,7 @@ func _registerService(c *gin.Context) {
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /registerService/{ns}/{svcname} [get]
-func _registerService(c *gin.Context) {
+func (tc *resourceController) _registerService(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	service, err := clientset.CoreV1().Services(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
@@ -427,13 +427,13 @@ func registerService(dc dynamic.Interface, ns string, vsname string, uriName str
 // @Produce  json
 // @Param   ns     path    string     true        "namespace"
 // @Success 200 "ok"
-// @Router /discoverServices/f{ns} [get]
-func _discoverServices(c *gin.Context) {
+// @Router /discoverServices/{ns} [get]
+func (tc *resourceController) _discoverServices(c *gin.Context) {
 	ns := c.Param("ns")
 
-	c.IndentedJSON(http.StatusOK, discoverServices(clientset, ns))
+	c.IndentedJSON(http.StatusOK, rs.discoverServices(clientset, ns))
 }
-func discoverServices(clientset *kubernetes.Clientset, ns string) []string {
+func (rs *resourceService) discoverServices(clientset *kubernetes.Clientset, ns string) []string {
 	services, err := clientset.CoreV1().Services(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalln("failed to get services:", err)
@@ -455,7 +455,7 @@ func discoverServices(clientset *kubernetes.Clientset, ns string) []string {
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /discoverService/{ns}/{svcname} [get]
-func _discoverService(c *gin.Context) {
+func (tc *resourceController) _discoverService(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 
@@ -492,7 +492,7 @@ func discoverService(clientset *kubernetes.Clientset, ns string, svcname string)
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /circuitBreaker/{ns}/{svcname} [get]
-func _circuitBreaker(c *gin.Context) {
+func (tc *resourceController) _circuitBreaker(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	circuitBreaker(ic, ns, svcname)
@@ -575,7 +575,7 @@ func circuitBreaker(ic *versioned.Clientset, ns string, svcname string) {
 // https://qiita.com/taizo/items/c397dbfed7215969b0a5
 // HTTPリクエストのレスポンスを構造体定義なしでjsonに吐き出す方法
 // https://shiimanblog.com/engineering/output-json/
-func _invokeServiceEndpointt(c *gin.Context) {
+func (tc *resourceController) _invokeServiceEndpointt(c *gin.Context) {
 	//invokeServiceEndpoint()
 	fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
 	fmt.Printf("%+v", c.Request.URL.Query()["method"])
@@ -615,7 +615,7 @@ func _invokeServiceEndpointt(c *gin.Context) {
 // @Param   path     query    string     true        "service path (ex. /path)"
 // @Success 200 "ok"
 // @Router /invokeService/{ns}/{svcname} [get]
-func _invokeService(c *gin.Context) {
+func (tc *resourceController) _invokeService(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	fmt.Printf("URL: %+v\n", c.Query("path")) //http://123.456.7.8/api/list
@@ -626,8 +626,8 @@ func _invokeService(c *gin.Context) {
 func invokeService(ns string, svcname string, path string) interface{} {
 
 	// get gateway address
-	addrs := getGatewayAddrs(clientset)
-	ports := getGatewayPort(ic, "default")
+	addrs := rs.getGatewayAddrs(clientset)
+	ports := rs.getGatewayPort(ic, "default")
 	fmt.Printf("gwAddrsPorts\n%+v\n%+v\n", addrs, ports)
 	addr := addrs[0]
 	port := ports[0]
@@ -670,7 +670,7 @@ func invokeService(ns string, svcname string, path string) interface{} {
 // @Param   endpointurl     query    string     true        "endpoint url (ex. http://POD_IP:PORT/path)"
 // @Success 200 "ok"
 // @Router /invokeServiceEndpoint [get]
-func _invokeServiceEndpoint(c *gin.Context) {
+func (tc *resourceController) _invokeServiceEndpoint(c *gin.Context) {
 	//fmt.Printf("%+v", c.Request.URL.Query()["svcname"])
 	//fmt.Printf("%+v", c.Request.URL.Query()["method"])
 	fmt.Printf("URL: %+v\n", c.Query("endpointurl")) //http://123.456.7.8/api/list
@@ -711,7 +711,7 @@ func invokeServiceEndpoint(url string) interface{} {
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /discoverServiceEndpoints/{ns}/{svcname} [get]
-func _discoverServiceEndpoints(c *gin.Context) {
+func (tc *resourceController) _discoverServiceEndpoints(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	c.IndentedJSON(http.StatusOK, discoverServiceEndpoints(clientset, ns, svcname))
@@ -753,7 +753,7 @@ func discoverServiceEndpoints(clientset *kubernetes.Clientset, ns string, svcnam
 // @Param   ns     path    string     true        "nodename"
 // @Success 200 "ok"
 // @Router /discoverServiceEndpoints/{ns}/{svcname}/{nodename} [get]
-func _discoverServiceEndpointsInNode(c *gin.Context) {
+func (tc *resourceController) _discoverServiceEndpointsInNode(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	nodename := c.Param("nodename")
@@ -810,7 +810,7 @@ func discoverServiceEndpointsInNode(clientset *kubernetes.Clientset, ns string, 
 // @Param   path     query    string     true        "path (ex. /path)"
 // @Success 200 "ok"
 // @Router /invokeServiceEndpointsInNode/{frontid}/{ns}/{svcname} [get]
-func _invokeServiceEndpointsInNode(c *gin.Context) {
+func (tc *resourceController) _invokeServiceEndpointsInNode(c *gin.Context) {
 	frontid := c.Param("frontid")
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
@@ -893,7 +893,7 @@ func invokeServiceEndpointsInNode(clientset *kubernetes.Clientset, frontid strin
 // @Param   svcname     path    string     true        "service name"
 // @Success 200 "ok"
 // @Router /invokeServiceEndpointsByIps/{frontid}/{ns}/{svcname} [get]
-func _invokeServiceEndpointsByIps(c *gin.Context) {
+func (tc *resourceController) _invokeServiceEndpointsByIps(c *gin.Context) {
 	frontid := c.Param("frontid")
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
@@ -978,7 +978,7 @@ func invokeServiceEndpointsByIps(clientset *kubernetes.Clientset, frontid string
 // @Param   nodename     path    string     true        "node name"
 // @Success 200 "ok"
 // @Router /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{nodename} [get]
-func _addFrontEpNodeRoute(c *gin.Context) {
+func (tc *resourceController) _addFrontEpNodeRoute(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	frontid := c.Param("frontid")
@@ -1031,7 +1031,7 @@ func addFrontEpNodeRoute(ic *versioned.Clientset, ns string, svcname string, fro
 // @Param   ips     path    string     true        "endpoint IP addresses"
 // @Success 200 "ok"
 // @Router /addFrontEpNodeRoute/{ns}/{svcname}/{frontid}/{ips} [get]
-func _addFrontEpIpsRoute(c *gin.Context) {
+func (tc *resourceController) _addFrontEpIpsRoute(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
 	frontid := c.Param("frontid")
@@ -1258,29 +1258,27 @@ func main() {
 	}))
 
 	router.GET("/test/:id", getTest)
-	router.GET("/registerGateway/:ns/:ip", _registerGateway)
-	router.GET("/discoverGateway/:ns", _discoverGateway)
-	router.GET("/getGatewayPort/:ns", _getGatewayPort)                               //http://localhost:8080/test/3
-	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
-	router.GET("/discoverServiceApidocUrl/:ns/:svcname", _discoverServiceApidocUrl)
-	//router.GET("/registerService/:ns/:vsname/:uriName/:uriPrefix/:uriRewrite/:host/:port", _registerService)
-	router.GET("/registerService/:ns/:svcname", _registerService)
-	router.GET("/discoverService/:ns/:svcname", _discoverService)
-	router.GET("/discoverServices/:ns", _discoverServices)
-	router.GET("/circuitBreaker/:ns/:svcname", _circuitBreaker)
-	router.GET("/invokeServiceEndpoint", _invokeServiceEndpoint)
-	router.GET("/invokeServiceEndpointt", _invokeServiceEndpointt)
-	router.GET("/discoverServiceEndpoints/:ns/:svcname", _discoverServiceEndpoints)
-	router.GET("/discoverServiceEndpointsInNode/:ns/:svcname/:nodename", _discoverServiceEndpointsInNode)
-	router.GET("/addFrontEpNodeRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpNodeRoute)
-	router.GET("/addFrontEpIpsRoute/:ns/:svcname/:frontid/:nodename", _addFrontEpIpsRoute)
-	router.GET("/invokeServiceEndpointsInNode/:frontid/:ns/:svcname", _invokeServiceEndpointsInNode)
-	router.GET("/invokeServiceEndpointsByIps/:frontid/:ns/:svcname", _invokeServiceEndpointsByIps)
-	router.GET("/getGatewayAddrsAndPorts", _getGatewayAddrsAndPorts)
-	router.GET("/invokeService/:ns/:svcname", _invokeService) // plus qurey param path needed
-
 	router.GET("/todos", rc.GetTodos)
-	router.GET("/todosa", rc._invokeService)
+	router.GET("/registerGateway/:ns/:ip", rc._registerGateway)
+	router.GET("/discoverGateway/:ns", rc._discoverGateway)
+	router.GET("/getGatewayPort/:ns", rc._getGatewayPort)                               //http://localhost:8080/test/3
+	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", rc._addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
+	router.GET("/discoverServiceApidocUrl/:ns/:svcname", rc._discoverServiceApidocUrl)
+	//router.GET("/registerService/:ns/:vsname/:uriName/:uriPrefix/:uriRewrite/:host/:port", _registerService)
+	router.GET("/invokeServiceEndpoint", rc._invokeServiceEndpoint)
+	router.GET("/invokeServiceEndpointt", rc._invokeServiceEndpointt)
+	router.GET("/discoverServiceEndpoints/:ns/:svcname", rc._discoverServiceEndpoints)
+	router.GET("/discoverServiceEndpointsInNode/:ns/:svcname/:nodename", rc._discoverServiceEndpointsInNode)
+	router.GET("/addFrontEpNodeRoute/:ns/:svcname/:frontid/:nodename", rc._addFrontEpNodeRoute)
+	router.GET("/addFrontEpIpsRoute/:ns/:svcname/:frontid/:nodename", rc._addFrontEpIpsRoute)
+	router.GET("/invokeServiceEndpointsInNode/:frontid/:ns/:svcname", rc._invokeServiceEndpointsInNode)
+	router.GET("/invokeServiceEndpointsByIps/:frontid/:ns/:svcname", rc._invokeServiceEndpointsByIps)
+	router.GET("/getGatewayAddrsAndPorts", rc._getGatewayAddrsAndPorts)
+	router.GET("/registerService/:ns/:svcname", rc._registerService)
+	router.GET("/discoverService/:ns/:svcname", rc._discoverService)
+	router.GET("/discoverServices/:ns", rc._discoverServices)
+	router.GET("/invokeService/:ns/:svcname", rc._invokeService) // plus qurey param path needed
+	router.GET("/circuitBreaker/:ns/:svcname", rc._circuitBreaker)
 
 	/* IMPORTANT
 	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
@@ -1384,12 +1382,12 @@ func main() {
 // @Produce  json
 // @Success 200 "ok"
 // @Router /getGatewayAddrsAndPorts [get]
-func _getGatewayAddrsAndPorts(c *gin.Context) {
-	addrs := getGatewayAddrs(clientset)
-	ports := getGatewayPort(ic, "default")
+func (tc *resourceController) _getGatewayAddrsAndPorts(c *gin.Context) {
+	addrs := rs.getGatewayAddrs(clientset)
+	ports := rs.getGatewayPort(ic, "default")
 	c.IndentedJSON(http.StatusOK, gin.H{"addresses": addrs, "ports": ports}) //  H:htmlに渡す変数を定義
 }
-func getGatewayAddrs(clientset *kubernetes.Clientset) []string {
+func (rs *resourceService) getGatewayAddrs(clientset *kubernetes.Clientset) []string {
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalln("failed to get services:", err)
@@ -1418,7 +1416,25 @@ var rc = NewResourceController(rs)
 // 外部パッケージに公開するインタフェース
 type ResourceController interface {
 	GetTodos(c *gin.Context)
+	_registerGateway(c *gin.Context)
+	_discoverGateway(c *gin.Context)
+	_getGatewayPort(c *gin.Context)
+	_addServiceApidocUrl(c *gin.Context)
+	_discoverServiceApidocUrl(c *gin.Context)
+	_registerService(c *gin.Context)
+	_discoverServices(c *gin.Context)
+	_discoverService(c *gin.Context)
+	_circuitBreaker(c *gin.Context)
+	_invokeServiceEndpointt(c *gin.Context)
 	_invokeService(c *gin.Context)
+	_invokeServiceEndpoint(c *gin.Context)
+	_discoverServiceEndpoints(c *gin.Context)
+	_discoverServiceEndpointsInNode(c *gin.Context)
+	_invokeServiceEndpointsInNode(c *gin.Context)
+	_invokeServiceEndpointsByIps(c *gin.Context)
+	_addFrontEpNodeRoute(c *gin.Context)
+	_addFrontEpIpsRoute(c *gin.Context)
+	_getGatewayAddrsAndPorts(c *gin.Context)
 }
 
 // 非公開のResourceController構造体
@@ -1437,6 +1453,7 @@ func (tc *resourceController) GetTodos(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"msg": "(rc *resourceController) GetTodos"})
 }
 
+/*
 // TODOの取得
 func (tc *resourceController) _invokeService(c *gin.Context) {
 	ns := c.Param("ns")
@@ -1449,6 +1466,7 @@ func (tc *resourceController) _invokeService(c *gin.Context) {
 	path := fmt.Sprintf("%s", c.Query("path"))
 	c.IndentedJSON(http.StatusOK, invokeService(ns, svcname, path))
 }
+*/
 
 //-------------------
 
@@ -1457,6 +1475,7 @@ type ResourceService interface {
 	GetTodos()
 	getGatewayAddrs(clientset *kubernetes.Clientset) []string
 	getGatewayPort(ic *versioned.Clientset, ns string) []string
+	discoverServices(clientset *kubernetes.Clientset, ns string) []string
 }
 
 // 非公開のResourceService構造体
@@ -1474,10 +1493,5 @@ func (rs *resourceService) GetTodos() {
 	return
 }
 
-func (rs *resourceService) getGatewayAddrs(clientset *kubernetes.Clientset) []string {
-	return getGatewayAddrs(clientset)
-}
-
-func (rs *resourceService) getGatewayPort(ic *versioned.Clientset, ns string) []string {
-	return getGatewayPort(ic, ns)
-}
+// dumel
+// https://www.dumels.com/eyJ0aXRsZSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9zYXRvb29vc2hpL3NnbWUiLCJhZ2dyZWdhdGlvbnMiOnRydWUsImZpZWxkcyI6dHJ1ZSwibWV0aG9kcyI6dHJ1ZSwiY29tcG9zaXRpb25zIjp0cnVlLCJpbXBsZW1lbnRhdGlvbnMiOnRydWUsImFsaWFzZXMiOnRydWUsImNvbm5lY3Rpb25MYWJlbHMiOnRydWUsIm5vdGVzIjoiIn0=
