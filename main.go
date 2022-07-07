@@ -1279,7 +1279,8 @@ func main() {
 	router.GET("/getGatewayAddrsAndPorts", _getGatewayAddrsAndPorts)
 	router.GET("/invokeService/:ns/:svcname", _invokeService) // plus qurey param path needed
 
-	router.GET("/todos", tc.GetTodos)
+	router.GET("/todos", rc.GetTodos)
+	router.GET("/todosa", rc._invokeService)
 
 	/* IMPORTANT
 	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
@@ -1410,49 +1411,73 @@ func getGatewayAddrs(clientset *kubernetes.Clientset) []string {
 // http://localhost:8080/getGatewayAddrsAndPorts
 
 //------------------
-var tr = NewTodoRepository()
-var tc = NewTodoController(tr)
+var rs = NewResourceService()
+var rc = NewResourceController(rs)
 
 //------------------
 // 外部パッケージに公開するインタフェース
-type TodoController interface {
+type ResourceController interface {
 	GetTodos(c *gin.Context)
+	_invokeService(c *gin.Context)
 }
 
-// 非公開のTodoController構造体
-type todoController struct {
-	tr TodoRepository
+// 非公開のResourceController構造体
+type resourceController struct {
+	rs ResourceService
 }
 
-// TodoControllerのコンストラクタ。
-// 引数にTodoRepositoryを受け取り、TodoController構造体のポインタを返却する。
-func NewTodoController(tr TodoRepository) TodoController {
-	return &todoController{tr}
+// ResourceControllerのコンストラクタ。
+// 引数にResourceServiceを受け取り、ResourceController構造体のポインタを返却する。
+func NewResourceController(rs ResourceService) ResourceController {
+	return &resourceController{rs}
 }
 
 // TODOの取得
-func (tc *todoController) GetTodos(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, gin.H{"msg": "(tc *todoController) GetTodos"})
+func (tc *resourceController) GetTodos(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": "(rc *resourceController) GetTodos"})
+}
+
+// TODOの取得
+func (tc *resourceController) _invokeService(c *gin.Context) {
+	ns := c.Param("ns")
+	svcname := c.Param("svcname")
+	addrs := rs.getGatewayAddrs(clientset)
+	ports := rs.getGatewayPort(ic, "default")
+	fmt.Printf("URL: %+v  %+v\n", addrs, ports)
+	fmt.Printf("URL: %+v\n", c.Query("path")) //http://123.456.7.8/api/list
+	//url := "http://34.146.130.74:31401/detail-asg/detail/111"
+	path := fmt.Sprintf("%s", c.Query("path"))
+	c.IndentedJSON(http.StatusOK, invokeService(ns, svcname, path))
 }
 
 //-------------------
 
 // 外部パッケージに公開するインタフェース
-type TodoRepository interface {
+type ResourceService interface {
 	GetTodos()
+	getGatewayAddrs(clientset *kubernetes.Clientset) []string
+	getGatewayPort(ic *versioned.Clientset, ns string) []string
 }
 
-// 非公開のTodoRepository構造体
-type todoRepository struct {
+// 非公開のResourceService構造体
+type resourceService struct {
 }
 
-// TodoRepositoryのコンストラクタ。TodoRepository構造体のポインタを返却する。
-func NewTodoRepository() TodoRepository {
-	return &todoRepository{}
+// ResourceServiceのコンストラクタ。ResourceService構造体のポインタを返却する。
+func NewResourceService() ResourceService {
+	return &resourceService{}
 }
 
 // TODO取得処理
-func (tr *todoRepository) GetTodos() {
-	fmt.Println("(tr *todoRepository) GetTodos()\n")
+func (rs *resourceService) GetTodos() {
+	fmt.Println("(rs *resourceService) GetTodos()\n")
 	return
+}
+
+func (rs *resourceService) getGatewayAddrs(clientset *kubernetes.Clientset) []string {
+	return getGatewayAddrs(clientset)
+}
+
+func (rs *resourceService) getGatewayPort(ic *versioned.Clientset, ns string) []string {
+	return getGatewayPort(ic, ns)
 }
