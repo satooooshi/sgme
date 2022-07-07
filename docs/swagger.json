@@ -17,6 +17,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "/addFrontEpNodeRoute",
                 "parameters": [
                     {
@@ -63,6 +66,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "/addFrontEpNodeRoute",
                 "parameters": [
@@ -213,6 +219,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "discoverService",
                 "parameters": [
                     {
@@ -279,6 +288,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "discoverServiceEndpoints",
                 "parameters": [
                     {
@@ -311,6 +323,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "discoverServiceEndpoints",
                 "parameters": [
@@ -351,6 +366,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "discoverServices",
                 "parameters": [
@@ -421,6 +439,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "invokeService",
                 "parameters": [
                     {
@@ -461,6 +482,9 @@
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "invokeServiceEndpoint",
                 "parameters": [
                     {
@@ -486,6 +510,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "invokeServiceEndpointsByIps",
                 "parameters": [
@@ -526,6 +553,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "invokeServiceEndpointsInNode",
                 "parameters": [
@@ -606,6 +636,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "registerService",
                 "parameters": [

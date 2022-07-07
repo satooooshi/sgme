@@ -25,6 +25,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "/addFrontEpNodeRoute",
                 "parameters": [
                     {
@@ -71,6 +74,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "/addFrontEpNodeRoute",
                 "parameters": [
@@ -221,6 +227,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "discoverService",
                 "parameters": [
                     {
@@ -287,6 +296,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "discoverServiceEndpoints",
                 "parameters": [
                     {
@@ -319,6 +331,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "discoverServiceEndpoints",
                 "parameters": [
@@ -359,6 +374,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "discoverServices",
                 "parameters": [
@@ -429,6 +447,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "invokeService",
                 "parameters": [
                     {
@@ -469,6 +490,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "serviceGovernance"
+                ],
                 "summary": "invokeServiceEndpoint",
                 "parameters": [
                     {
@@ -494,6 +518,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "invokeServiceEndpointsByIps",
                 "parameters": [
@@ -534,6 +561,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "invokeServiceEndpointsInNode",
                 "parameters": [
@@ -614,6 +644,9 @@ const docTemplate = `{
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "serviceGovernance"
                 ],
                 "summary": "registerService",
                 "parameters": [

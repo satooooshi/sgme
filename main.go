@@ -1279,6 +1279,8 @@ func main() {
 	router.GET("/getGatewayAddrsAndPorts", _getGatewayAddrsAndPorts)
 	router.GET("/invokeService/:ns/:svcname", _invokeService) // plus qurey param path needed
 
+	router.GET("/todos", tc.GetTodos)
+
 	/* IMPORTANT
 	router.GET("/addServiceApidocUrl/:ns/:svcname/:apidocurl", _addServiceApidocUrl) // http://localhost:8080/addServiceApidocUrl/default/svcname/apidocurl
 	router.GET("/discoverServiceApidocUrl/:ns/:svcname", _discoverServiceApidocUrl)
@@ -1406,3 +1408,51 @@ func getGatewayAddrs(clientset *kubernetes.Clientset) []string {
 }
 
 // http://localhost:8080/getGatewayAddrsAndPorts
+
+//------------------
+var tr = NewTodoRepository()
+var tc = NewTodoController(tr)
+
+//------------------
+// 外部パッケージに公開するインタフェース
+type TodoController interface {
+	GetTodos(c *gin.Context)
+}
+
+// 非公開のTodoController構造体
+type todoController struct {
+	tr TodoRepository
+}
+
+// TodoControllerのコンストラクタ。
+// 引数にTodoRepositoryを受け取り、TodoController構造体のポインタを返却する。
+func NewTodoController(tr TodoRepository) TodoController {
+	return &todoController{tr}
+}
+
+// TODOの取得
+func (tc *todoController) GetTodos(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": "(tc *todoController) GetTodos"})
+}
+
+//-------------------
+
+// 外部パッケージに公開するインタフェース
+type TodoRepository interface {
+	GetTodos()
+}
+
+// 非公開のTodoRepository構造体
+type todoRepository struct {
+}
+
+// TodoRepositoryのコンストラクタ。TodoRepository構造体のポインタを返却する。
+func NewTodoRepository() TodoRepository {
+	return &todoRepository{}
+}
+
+// TODO取得処理
+func (tr *todoRepository) GetTodos() {
+	fmt.Println("(tr *todoRepository) GetTodos()\n")
+	return
+}
