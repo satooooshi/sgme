@@ -983,7 +983,7 @@ func (tc *resourceController) _addFrontEpNodeRoute(c *gin.Context) {
 	svcname := c.Param("svcname")
 	frontid := c.Param("frontid")
 	nodename := c.Param("nodename")
-	c.IndentedJSON(http.StatusOK, gin.H{"data": rs.addFrontEpNodeRoute(ic, ns, svcname, frontid, nodename)})
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": rs.addFrontEpNodeRoute(ic, ns, svcname, frontid, nodename)})
 }
 
 func (rs *resourceService) addFrontEpNodeRoute(ic *versioned.Clientset, ns string, svcname string, frontid string, nodename string) map[string]string {
