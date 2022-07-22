@@ -350,17 +350,35 @@ func (tc *resourceController) _registerService(c *gin.Context) {
 	log.Printf("Got service: %+v\n", service.GetName())
 	log.Printf("Got service port: %+v\n", service.Spec.Ports[0].Port)
 	port := service.Spec.Ports[0].Port
-	registerService(dc, ns, "vs-customer-gateway", svcname, "/"+svcname+"-asg/", "/", svcname+"."+ns+".svc.cluster.local", port)
-	c.IndentedJSON(http.StatusOK, gin.H{"msg": "/" + svcname + "-asg"})
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": rs.registerService(dc, ns, "vs-customer-gateway", svcname, "/"+svcname+"-asg/", "/", svcname+"."+ns+".svc.cluster.local", port)})
+	//c.IndentedJSON(http.StatusOK, gin.H{"msg": "/" + svcname + "-asg"})
 }
-func registerService(dc dynamic.Interface, ns string, vsname string, uriName string, uriPrefix string, uriRewrite string, host string, port int32) {
+func (rs *resourceService) registerService(dc dynamic.Interface, ns string, vsname string, uriName string, uriPrefix string, uriRewrite string, host string, port int32) string {
+
+	vsList, err := ic.NetworkingV1alpha3().VirtualServices(ns).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Fatalf("Failed to get VirtualService in %s namespace: %s", ns, err)
+	}
+	for i := range vsList.Items {
+		vs := vsList.Items[i]
+		log.Printf("Index: %d VirtualService Hosts: %+v\n", i, vs.Spec.GetHosts())
+		//log.Printf("Index: %d VirtualService Hosts: %+v\n", i, vs.Spec.Http[0].Match[0].Uri)
+		for j := range vs.Spec.Http {
+			//log.Printf("[%d] Service Name: %+v, Uri: %+v\n", j, vs.Spec.Http[j].Route[0].Destination.Host, vs.Spec.Http[j].Match[0].Uri)
+			uriPrefix := vs.Spec.Http[j].Match[0].Uri.GetPrefix()
+			if uriPrefix == "/"+uriName+"-asg/" {
+				return fmt.Sprintf("failed to register %s service. Already registered", uriName)
+			}
+		}
+	}
+
 	//  Create a GVR which represents an Istio Virtual Service.
 	gvr := schema.GroupVersionResource{
 		Group:    "networking.istio.io",
 		Version:  "v1alpha3",
 		Resource: "virtualservices",
 	}
-	_, err := dc.Resource(gvr).Namespace("default").Get(context.TODO(), vsname, metav1.GetOptions{})
+	_, err = dc.Resource(gvr).Namespace("default").Get(context.TODO(), vsname, metav1.GetOptions{})
 	//res, err := dc.Resource(gvr).Namespace("default").Get(context.TODO(), vsname, metav1.GetOptions{})
 	//log.Print(res)
 	if err != nil {
@@ -418,7 +436,9 @@ func registerService(dc dynamic.Interface, ns string, vsname string, uriName str
 
 	if err != nil {
 		log.Print(err)
+		return fmt.Sprintf("failed to register %s service", host)
 	}
+	return "ok"
 }
 
 // https://blog.csdn.net/baobaoxiannv/article/details/110732147
@@ -433,13 +453,12 @@ func registerService(dc dynamic.Interface, ns string, vsname string, uriName str
 func (tc *resourceController) _revokeService(c *gin.Context) {
 	ns := c.Param("ns")
 	svcname := c.Param("svcname")
-	revokeService(ic, dc, ns, svcname)
-	c.IndentedJSON(http.StatusOK, gin.H{"msg": "ok"})
+
+	c.IndentedJSON(http.StatusOK, gin.H{"msg": rs.revokeService(ic, dc, ns, svcname)})
 }
 
 //func (rs *resourceService) revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) []string { // because gateway is exposed as nodePort service
-func revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) []string { // because gateway is exposed as nodePort service
-	var arr []string
+func (rs *resourceService) revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) string { // because gateway is exposed as nodePort service
 	// list VirtualServices
 	vsList, err := ic.NetworkingV1alpha3().VirtualServices(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -535,12 +554,11 @@ func revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svc
 		Resource: "virtualservices",
 	}
 	_, err = dc.Resource(gvr).Namespace(ns).Patch(context.TODO(), "vs-customer-gateway", types.JSONPatchType, b, metav1.PatchOptions{})
-
 	if err != nil {
-		panic(err)
+		return fmt.Sprintf("failed to revoke %s service", svcname)
 	}
 
-	return arr
+	return "ok"
 }
 
 // @Summary discoverServices
@@ -1589,7 +1607,8 @@ type ResourceService interface {
 	invokeServiceEndpointsByIps(clientset *kubernetes.Clientset, frontid string, ns string, svcname string, path string) interface{}
 	addFrontEpNodeRoute(ic *versioned.Clientset, ns string, svcname string, frontid string, nodename string) map[string]string
 	addFrontEpIpsRoute(ic *versioned.Clientset, ns string, svcname string, frontid string, ips string) map[string]string
-	//revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) []string
+	registerService(dc dynamic.Interface, ns string, vsname string, uriName string, uriPrefix string, uriRewrite string, host string, port int32) string
+	revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) string
 }
 
 // 非公開のResourceService構造体
