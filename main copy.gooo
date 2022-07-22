@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -440,64 +439,14 @@ func (tc *resourceController) _revokeService(c *gin.Context) {
 //func (rs *resourceService) revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) []string { // because gateway is exposed as nodePort service
 func revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svcname string) []string { // because gateway is exposed as nodePort service
 	var arr []string
-	// list VirtualServices
+	// Test VirtualServices
 	vsList, err := ic.NetworkingV1alpha3().VirtualServices(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("Failed to get VirtualService in %s namespace: %s", ns, err)
 	}
 
-	/*
-		var list JSONPatchList
-		for i := range vsList.Items {
-			vs := vsList.Items[i]
-			log.Printf("Index: %d VirtualService Hosts: %+v\n", i, vs.Spec.GetHosts())
-			//log.Printf("Index: %d VirtualService Hosts: %+v\n", i, vs.Spec.Http[0].Match[0].Uri)
-			for j := range vs.Spec.Http {
-				//log.Printf("[%d] Service Name: %+v, Uri: %+v\n", j, vs.Spec.Http[j].Route[0].Destination.Host, vs.Spec.Http[j].Match[0].Uri)
-				host := vs.Spec.Http[j].Route[0].Destination.Host
-				uriPrefix := vs.Spec.Http[j].Match[0].Uri.GetPrefix()
-				uriRewrite := vs.Spec.Http[j].Rewrite
-				port := vs.Spec.Http[j].Route[0].Destination.Port.Number
-				log.Printf("[%d] host: %+v, uriPrefix: %+v, uriRewrite: %+v, port: %+v\n", j, host, uriPrefix, uriRewrite, port)
-				if uriPrefix == "/"+svcname+"-asg/" {
-					continue
-				} else {
-					list = AddJsonPatch(
-						&JSONPatch{
-							Op:   "add",
-							Path: "/spec/http/-",
-							Value: map[string]interface{}{
-								"name": host,
-								"match": []map[string]interface{}{
-									{
-										"uri": map[string]interface{}{
-											"prefix": uriPrefix,
-										},
-									},
-								},
-								"rewrite": map[string]interface{}{
-									"uri": uriRewrite,
-								},
-								"route": []map[string]interface{}{
-									{
-										"destination": map[string]interface{}{
-											"host": host,
-											"port": map[string]interface{}{
-												"number": port,
-											},
-										},
-									},
-								},
-							},
-						})
-				}
-			}
-		}
-		log.Printf("List--------------\n: %+s\n", list)
-	*/
-
-	var idx string
-	var list JSONPatchList
+	var idx int
+	//var newItems
 	for i := range vsList.Items {
 		vs := vsList.Items[i]
 		log.Printf("Index: %d VirtualService Hosts: %+v\n", i, vs.Spec.GetHosts())
@@ -510,35 +459,64 @@ func revokeService(ic *versioned.Clientset, dc dynamic.Interface, ns string, svc
 			port := vs.Spec.Http[j].Route[0].Destination.Port.Number
 			if uriPrefix == "/"+svcname+"-asg/" {
 				log.Printf("[%d] host: %+v, uriPrefix: %+v, uriRewrite: %+v, port: %+v\n", j, host, uriPrefix, uriRewrite, port)
-				idx = strconv.Itoa(j)
-				break // delete the first match
+				idx = j
+				break // delete first match
 			}
 		}
 	}
 
-	list = AddJsonPatch(
+	//log.Printf("idx--------------\n: %+v\n", idx)
+	list := AddJsonPatch(
 		&JSONPatch{
 			Op:   "remove",
-			Path: "/spec/http/" + idx,
+			Path: "/spec/http/" + string(idx),
 		})
 
-	log.Printf("will delete: %s\n", "/spec/http/"+idx)
+	//log.Printf("List--------------\n: %+v\n", list)
 
 	//b, _ := json.Marshal(list)
-	// patch vs
-	b, _ := json.Marshal(list)
-	//  Apply the patch to the service.
-	//  Create a GVR which represents an Istio Virtual Service.
-	gvr := schema.GroupVersionResource{
-		Group:    "networking.istio.io",
-		Version:  "v1alpha3",
-		Resource: "virtualservices",
-	}
-	_, err = dc.Resource(gvr).Namespace(ns).Patch(context.TODO(), "vs-customer-gateway", types.JSONPatchType, b, metav1.PatchOptions{})
+	/*
+		//  Apply the patch to the service.
+		//  Create a GVR which represents an Istio Virtual Service.
+		gvr := schema.GroupVersionResource{
+			Group:    "networking.istio.io",
+			Version:  "v1alpha3",
+			Resource: "virtualservices",
+		}
+		_, err = dc.Resource(gvr).Namespace(ns).Patch(context.TODO(), "vs-customer-gateway", types.JSONPatchType, b, metav1.PatchOptions{})
+	*/
 
-	if err != nil {
-		panic(err)
-	}
+	/*
+		//  Weight the two routes - 50/50.
+		type PatchUInt32Value struct {
+			Op   string `json:"op"`
+			Path string `json:"path"`
+		}
+		patchPayload := make([]PatchUInt32Value, 2)
+		patchPayload[0].Op = "remove"
+		patchPayload[0].Path = "/spec/http/0"
+		patchBytes, _ := json.Marshal(patchPayload)
+
+		//  Apply the patch to the 'service2' service.
+		gvr := schema.GroupVersionResource{
+			Group:    "networking.istio.io",
+			Version:  "v1alpha3",
+			Resource: "virtualservices",
+		}
+		_, err = dc.Resource(gvr).Namespace(ns).Patch(context.TODO(), "vs-customer-gateway", types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+		//_, err = ic.NetworkingV1alpha3().VirtualServices(ns).Patch(context.TODO(), "vs-customer-gateway", types.JSONPatchType, b, metav1.PatchOptions{})
+		// marshal unstructed into indented json
+		// pass unstructured, NOT unstructed.Object
+		//jRead, _ := uvs.MarshalJSON()
+		//var buf bytes.Buffer
+		//err = json.Indent(&buf, []byte(jRead), "", "  ")
+		if err != nil {
+			panic(err)
+		}
+
+		//indentJson := buf.String()
+		//fmt.Printf("indentJson %s/\n", indentJson)
+	*/
 
 	return arr
 }
